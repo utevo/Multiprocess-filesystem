@@ -14,13 +14,14 @@ add_library(libcore ${SOURCES_LIBCORE})
 file(GLOB SOURCES_LIBCLIENT "libraries/client/*.cpp" "libraries/client/*.hpp")
 add_library(libclient ${SOURCES_LIBCLIENT})
 
-file(GLOB SOURCES_LIBCLIENT "libraries/management/*.cpp" "libraries/management/*.hpp")
-add_library(libclient ${SOURCES_LIBCLIENT})
+file(GLOB SOURCES_LIBMANAGER "libraries/manager/*.cpp" "libraries/manager/*.hpp")
+add_library(libmanager ${SOURCES_LIBMANAGER})
 
 
-file(GLOB SOURCES_SERVER "server/*.cpp" "server/*.hpp")
-add_executable(server ${SOURCES_SERVER})
-target_link_libraries(server PUBLIC libcore)
+file(GLOB SOURCES_MANAGER "manager/*.cpp" "manager/*.hpp")
+add_executable(manager ${SOURCES_MANAGER})
+target_link_libraries(libmanager PUBLIC libcore)
+target_link_libraries(manager PUBLIC libmanager)
 
 file(GLOB SOURCES_CLIENT "client/*.cpp" "client/*.hpp")
 add_executable(client ${SOURCES_CLIENT})

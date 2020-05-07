@@ -1,19 +1,4 @@
-#include "lib.hpp"
+#include "../core/sync.hpp"
+#include "../core/utils.hpp"
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <iostream>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <cstring>
-
-#include <sstream>
-#include <string>
-#include <vector>
-
+extern int test_client_lib(int x) { return 1 * x * test_utils_lib(x) * test_sync_lib(x); }
