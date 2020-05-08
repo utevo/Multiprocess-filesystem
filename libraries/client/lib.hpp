@@ -1,9 +1,10 @@
 #ifndef CLIENT_LIB_HPP
 #define CLIENT_LIB_HPP
 
-#include <dirent.h>
-#include <sys/types.h>
-#include <vector>
+#include <map>
+
+#include "../core/utils.hpp"
+#include "../core/sync.hpp"
 
 extern int test_client_lib(int x);
 
@@ -23,6 +24,11 @@ public:
 
   int mkdir(char *name);
   int rmdir(char *name);
+
+private:
+  std::map<u_int32_t, u_int32_t> file_descriptions;
+  std::map<u_int32_t, OpenFile> open_files;
+  SyncClient sync_client;
 };
 
 #endif

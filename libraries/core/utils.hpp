@@ -15,9 +15,9 @@ struct Inode {
   u_int8_t valid;
   u_int8_t type; // dir or normal file
   u_int32_t size;
-  u_int32_t direct_ptrs[4];
-  u_int32_t indirect_ptr;
-  u_int32_t double_indirect_ptr;
+  u_int32_t direct_idxs[4];
+  u_int32_t indirect_idx;
+  u_int32_t double_indirect_idx;
 };
 
 enum FileStatus: u_int8_t {
@@ -29,7 +29,7 @@ enum FileStatus: u_int8_t {
 struct OpenFile {
   FileStatus status;
   u_int32_t offset;
-  u_int32_t inode;
+  u_int32_t inode_idx;
   u_int32_t ref_count;
 };
 

@@ -1,1 +1,0 @@
-extern int test_sync_lib(int x) { return 3 * x; }
