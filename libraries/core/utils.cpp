@@ -1,1 +1,0 @@
-extern int test_utils_lib(int x) { return 4 * x; }

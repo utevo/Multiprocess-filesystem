@@ -5,16 +5,14 @@
 #include <sys/types.h>
 #include <vector>
 
-
 extern int test_client_lib(int x);
 
 class MFSClient {
-
 public:
   int error;
 
   MFSClient();
-  int mount(char* path);
+  int mount(char *path);
 
   int open(char *name, int mode);
   int creat(char *name, int mode);
@@ -24,7 +22,7 @@ public:
   int unlink(char *name);
 
   int mkdir(char *name);
-  int rmdir(char *name); 
+  int rmdir(char *name);
 };
 
 #endif
