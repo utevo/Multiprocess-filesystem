@@ -1,8 +1,7 @@
-#ifndef SYNC_HPP
-#define SYNC_HPP
+#ifndef CLIENT_SYNC_HPP
+#define CLIENT_SYNC_HPP
 
 #include <iostream>
-
 
 class SyncClient {
 public:

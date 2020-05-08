@@ -1,5 +1,5 @@
-#ifndef LIB_HPP
-#define LIB_HPP
+#ifndef CLIENT_LIB_HPP
+#define CLIENT_LIB_HPP
 
 #include <dirent.h>
 #include <sys/types.h>

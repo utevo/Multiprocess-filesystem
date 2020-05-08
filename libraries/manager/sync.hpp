@@ -1,5 +1,5 @@
-#ifndef SYNC_HPP
-#define SYNC_HPP
+#ifndef MANAGER_SYNC_HPP
+#define MANAGER_SYNC_HPP
 
 #include <iostream>
 

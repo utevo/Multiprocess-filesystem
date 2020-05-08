@@ -1,5 +1,5 @@
-#ifndef LIB_HPP
-#define LIB_HPP
+#ifndef MANAGER_LIB_HPP
+#define MANAGER_LIB_HPP
 
 #include <cstdint>
 #include <string>
