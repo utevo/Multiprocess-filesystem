@@ -20,4 +20,17 @@ struct Inode {
   u_int32_t double_indirect_ptr;
 };
 
+enum FileStatus: u_int8_t {
+  O_RDONLY,
+  O_WRONLY,
+  O_RDWR
+};
+
+struct OpenFile {
+  FileStatus status;
+  u_int32_t offset;
+  u_int32_t inode;
+  u_int32_t ref_count;
+};
+
 #endif
