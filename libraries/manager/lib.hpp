@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <string>
 
-extern int test_manager_lib(int x);
+u_int CalcInodeBitmapBlocks(u_int inodes_blocks);
+u_int CalcAllocationBitmapBlocks(u_int data_blocks);
 
-extern int CreateFS(std::string path,
-                    unsigned int inodes_blocks,
-                    unsigned int data_blocks);
+extern int CreateFS(std::string path, u_int inodes_blocks, u_int data_blocks);
 
 #endif

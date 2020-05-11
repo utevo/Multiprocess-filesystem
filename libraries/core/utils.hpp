@@ -3,9 +3,12 @@
 
 #include <iostream>
 
+extern const u_int32_t kBlockSize;
+extern const u_int32_t kInodeSize;
+
 struct Superblock {
-  const u_int32_t block_size = 4096;
-  const u_int32_t inode_size = 32;
+  u_int32_t block_size = kBlockSize;
+  u_int32_t inode_size = kInodeSize;
   u_int32_t inode_blocks;
   u_int32_t inode_bitmap_blocks;
   u_int32_t allocation_bitmap_blocks;
