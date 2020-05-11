@@ -13,10 +13,12 @@ struct Superblock {
   u_int32_t inode_bitmap_blocks;
   u_int32_t allocation_bitmap_blocks;
   u_int32_t data_blocks;
+  
+  u_int32_t free[1018];
 };
 
 struct Inode {
-  u_int8_t valid;
+  u_int8_t valid = 0;
   u_int8_t type; // dir or normal file
   u_int32_t size;
   u_int32_t direct_idxs[4];
