@@ -6,9 +6,8 @@
 
 extern int test_manager_lib(int x);
 
-extern int createFS(std::string path,
-             unsigned int inodes_blocks,
-             unsigned int allocation_bitmap_blocks,
-             unsigned int data_blocks);
+extern int CreateFS(std::string path,
+                    unsigned int inodes_blocks,
+                    unsigned int data_blocks);
 
 #endif
