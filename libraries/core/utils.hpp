@@ -6,9 +6,10 @@
 struct Superblock {
   const u_int32_t block_size = 4096;
   const u_int32_t inode_size = 32;
-  u_int32_t blocks;
   u_int32_t inode_blocks;
+  u_int32_t inode_bitmap_blocks;
   u_int32_t allocation_bitmap_blocks;
+  u_int32_t data_blocks;
 };
 
 struct Inode {
@@ -21,16 +22,15 @@ struct Inode {
 };
 
 enum FileStatus: u_int8_t {
-  O_RDONLY,
-  O_WRONLY,
-  O_RDWR
+  RDONLY,
+  WRONLY,
+  RDWR
 };
 
 struct OpenFile {
   FileStatus status;
   u_int32_t offset;
   u_int32_t inode_idx;
-  u_int32_t ref_count;
 };
 
 #endif

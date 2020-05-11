@@ -15,6 +15,9 @@ public:
 
   void AllocationBitmapLock();
   void AllocationBitmapUnlock();
+
+  void InodeBitmapLock();
+  void InodeBitmapUnlock();
 };
 
 #endif
