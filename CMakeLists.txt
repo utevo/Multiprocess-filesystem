@@ -38,5 +38,6 @@ foreach(TEST ${TESTS})
     add_executable(${NAME} ${TEST})
     target_link_libraries(${NAME} PUBLIC libcore)
     target_link_libraries(${NAME} PUBLIC libclient)
+    target_link_libraries(${NAME} PUBLIC libmanager)
 
 endforeach()
