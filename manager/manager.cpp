@@ -6,5 +6,5 @@
 std::string path = "./mfs";
 
 int main(){
-  CreateFS(path, 1, 1);
+  CreateFS(path, 1, 3);
 }

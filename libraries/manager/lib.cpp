@@ -33,13 +33,11 @@ void AppendSuperblock(int fd, Superblock superblock) {
 }
 
 void AppendEmptyBlocks(int fd, u_int blocks) {
-  char empty_block[kBlockSize];
-  std::fill_n(empty_block, kBlockSize, 0);
-
-  for (u_int i = 0; i < blocks; ++i) {
-    int result = write(fd, &empty_block, kBlockSize);
-    if (result != kBlockSize)
-      throw std::iostream::failure("Couldn't add blocks");
+  u_int64_t bytes = blocks * kBlockSize;
+  const int before = lseek(fd, 0, SEEK_CUR);
+  const int after = lseek(fd, bytes - 1, SEEK_CUR);
+  if (after - before != bytes - 1) {
+    throw std::iostream::failure("Couldn't add blocks");
   }
 }
 
@@ -67,7 +65,13 @@ void AppendAllocationBitmapBlocks(int fd, u_int allocation_bitmap_blocks) {
   }
 }
 
-void AppendDataBlocks(int fd, u_int data_blocks) {}
+void AppendDataBlocks(int fd, u_int data_blocks) {
+  try {
+    AppendEmptyBlocks(fd, data_blocks);
+  } catch (std::iostream::failure e) {
+    throw std::iostream::failure("Couldn't add data blocks");
+  }
+}
 
 extern void CreateFS(std::string path, u_int inodes_blocks, u_int data_blocks) {
   u_int inode_bitmap_blocks = CalcInodeBitmapBlocks(inodes_blocks);
