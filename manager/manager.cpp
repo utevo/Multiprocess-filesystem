@@ -1,7 +1,10 @@
 #include <iostream>
+#include <string>
 
 #include "./../libraries/manager/lib.hpp"
 
+std::string path = "./mfs";
+
 int main(){
-    std::cout << test_manager_lib(1) << std::endl;
+  CreateFS(path, 1, 3);
 }
