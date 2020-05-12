@@ -1,7 +1,10 @@
 #include <iostream>
+#include <string>
 
 #include "./../libraries/manager/lib.hpp"
 
+std::string path = "./mfs";
+
 int main(){
-    std::cout << "Not implemented :(" << std::endl;
+  CreateFS(path, 1, 1);
 }
