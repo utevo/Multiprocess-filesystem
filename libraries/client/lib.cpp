@@ -58,4 +58,11 @@ int MFSClient::openAndSkipSuperblock() {
     return fd;
 }
 
+int MFSClient::getLowestDescriptor() {
+    int lowestFd = 1;
+    while (file_descriptions.find(lowestFd) != file_descriptions.end())
+        ++lowestFd;
+    return lowestFd;
+}
+
 

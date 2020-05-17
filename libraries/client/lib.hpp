@@ -32,6 +32,7 @@ private:
   SyncClient sync_client;
 
   int openAndSkipSuperblock();
+  int getLowestDescriptor();
 };
 
 #endif
