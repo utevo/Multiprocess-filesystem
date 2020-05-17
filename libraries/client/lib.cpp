@@ -11,12 +11,15 @@ extern int test_client_lib(int x) { return 1 * x; }
 extern const u_int32_t kBlockSize;
 extern const u_int32_t kInodeSize;
 
-MFSClient::MFSClient() { }
+MFSClient::MFSClient() {
+    disk_path = "./mfs";
+}
 
 int MFSClient::mfs_mount(char *path) {
     return 0;
 }
 int MFSClient::mfs_open(char *name, int mode) {
+    int disk = openAndSkipSuperblock();
     return 0;
 }
 int MFSClient::mfs_creat(char *name, int mode) {
