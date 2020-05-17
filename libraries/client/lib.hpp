@@ -33,6 +33,7 @@ private:
 
   int openAndSkipSuperblock();
   int getLowestDescriptor();
+  int getFirstFreeBlock(); // returns number of blocks to skip
 };
 
 #endif

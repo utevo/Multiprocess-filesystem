@@ -64,5 +64,9 @@ int MFSClient::getLowestDescriptor() {
         ++lowestFd;
     return lowestFd;
 }
+int MFSClient::getFirstFreeBlock() {
+    int disk = openAndSkipSuperblock();
+    return 0;
+}
 
 
