@@ -11,10 +11,25 @@ extern int test_client_lib(int x) { return 1 * x; }
 extern const u_int32_t kBlockSize;
 extern const u_int32_t kInodeSize;
 
-MFSClient::MFSClient() { }
-
-int MFSClient::mfs_mount(char *path) {
-    return 0;
+MFSClient::MFSClient() {
+    error = 0;
+}
+void MFSClient::mfs_mount(char *path) {
+    disk_path = path;
+    int fd = openAndSeek(0);
+    if(read(fd, &blockSize, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read block size from super block");
+    if(read(fd, &inodeSize, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read inode size from super block");
+    if(read(fd, &inodeOffset, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read inode offset from super block");
+    if(read(fd, &inodeBitmapOffset, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read inode bitmap offset from super block");
+    if(read(fd, &blocksBitmapOffset, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read blocks bitmap from super block");
+    if(read(fd, &blocksOffset, sizeof(u_int32_t)) <= 0)
+        throw std::ios_base::failure("Cannot read block size from super block");
+    close(fd);
 }
 int MFSClient::mfs_open(char *name, int mode) {
     return 0;
@@ -48,11 +63,11 @@ int MFSClient::mfs_mkdir(char *name) {
 int MFSClient::mfs_rmdir(char *name) {
     return 0;
 }
-int MFSClient::openAndSkipSuperblock() {
+int MFSClient::openAndSeek(int offset) {
     int fd = open(disk_path.c_str(), O_RDWR);
     if(fd == -1)
         throw std::ios_base::failure("Cannot open virtual disk");
-    int seek = lseek(fd, kBlockSize, SEEK_DATA);
+    int seek = lseek(fd, offset, SEEK_DATA);
     if(seek == -1)
         throw std::ios_base::failure("Error during lseek on virtual disk");
     return fd;
@@ -65,7 +80,7 @@ int MFSClient::getLowestDescriptor() {
     return lowestFd;
 }
 int MFSClient::getFirstFreeBlock() {
-    int disk = openAndSkipSuperblock();
+    int disk = openAndSeek(blocksBitmapOffset);
     return 0;
 }
 

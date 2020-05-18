@@ -13,7 +13,7 @@ public:
   int error;
 
   MFSClient();
-  int mfs_mount(char *path);
+  void mfs_mount(char *path);
 
   int mfs_open(char *name, int mode);
   int mfs_creat(char *name, int mode);
@@ -26,14 +26,22 @@ public:
   int mfs_rmdir(char *name);
 
 private:
+  int blockSize;
+  int inodeSize;
+  //offsets in number of blocks, not bytes!!!
+  int inodeBitmapOffset;
+  int inodeOffset;
+  int blocksBitmapOffset;
+  int blocksOffset;
+
   std::string disk_path;
   std::map<u_int32_t, u_int32_t> file_descriptions;
   std::map<u_int32_t, OpenFile> open_files;
   SyncClient sync_client;
 
-  int openAndSkipSuperblock();
+  int openAndSeek(int offset);
   int getLowestDescriptor();
-  int getFirstFreeBlock(); // returns number of blocks to skip
+  int getFirstFreeBlock(); // returns offset to begin of block
 };
 
 #endif
