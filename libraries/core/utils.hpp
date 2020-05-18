@@ -18,8 +18,8 @@ struct Superblock {
 };
 
 struct Inode {
-  u_int8_t valid = 0;
-  u_int8_t type; // dir or normal file
+  u_int16_t valid = 0;
+  u_int16_t type; // dir or normal file
   u_int32_t size;
   u_int32_t direct_idxs[4];
   u_int32_t indirect_idx;
