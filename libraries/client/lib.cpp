@@ -103,39 +103,32 @@ int MFSClient::getAndReserveFirstFreeBlock() {
     int disk = openAndSeek(allocationBitmapOffset);
     sync_client.AllocationBitmapLock();
 
-    std::vector<u_int64_t> bitmap(blockSize/sizeof(u_int64_t));
-
     u_int64_t maxValue = 0xFFFFFFFFFFFFFFFF;
-    int blockNumber = 0;
-    bool stop = false;
+    unsigned long blockNumber = 0;
 
     for(int i = 0; i < allocationBitmap; ++i) {
-        int unreadBlocksNumber = blocks - (i * blockSize * 8);
-        //read allocation bitmap
-        //if need read whole block
-        //otherwise only blocks number of bits
-        int blocksToRead = (unreadBlocksNumber > blockSize * 8) ?
-                bitmap.size() * sizeof(u_int64_t) * 8 :
-                unreadBlocksNumber;
+        std::vector<u_int64_t> bitmap(blockSize/sizeof(u_int64_t));
+        unsigned long unreadBlocksNumber = blocks - (i * blockSize * 8);
+        bool stop = false;
+        unsigned long uints64ToRead = unreadBlocksNumber > blockSize * 8 ?
+                bitmap.size() :
+                myCeil(unreadBlocksNumber, (sizeof(u_int64_t) * 8));
 
-        int readCount = ceil((double)blocksToRead / sizeof(u_int64_t));
-        if(readCount < 8)
-            readCount = 8;
-
+        unsigned long readCount = uints64ToRead * sizeof(u_int64_t);
         if(read(disk, bitmap.data(), readCount) < 0)
             throw std::ios_base::failure("Cannot read allocation bitmap block");
 
-        int bitsToRead = blocksToRead;
-        for(int k = 0; k < ceil((double)readCount / sizeof(u_int64_t)); ++k) {
-            if((bitmap[k] & maxValue) == maxValue){
+        unsigned long endLoop = myCeil(readCount, sizeof(u_int64_t));
+        if((unreadBlocksNumber % 64 == 0) && (endLoop < bitmap.size()))
+            endLoop++;
+
+        for(int k = 0; k < endLoop; ++k) {
+            if(bitmap[k] == maxValue){
                 blockNumber += 64;
                 continue;
             }
             u_int64_t tmp = 0x8000000000000000;
-            int loopEnd = bitsToRead > sizeof(u_int64_t) * 8 ?
-                      sizeof(u_int64_t) * 8 :
-                      bitsToRead;
-            for(int j = 0; i < loopEnd; ++j){
+            while (tmp > 0){
                 if(blockNumber >= blocks)
                     throw std::out_of_range("All blocks is occupied");
                 if((bitmap[k] & tmp) == 0) {
@@ -150,9 +143,9 @@ int MFSClient::getAndReserveFirstFreeBlock() {
                 tmp >>= 1;
                 blockNumber++;
             }
+
             if(stop)
                 break;
-            bitsToRead -= loopEnd;
         }
         if(stop)
             break;

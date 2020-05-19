@@ -38,4 +38,6 @@ struct OpenFile {
   u_int32_t inode_idx;
 };
 
+unsigned long myCeil(unsigned long first, unsigned long second);
+
 #endif
