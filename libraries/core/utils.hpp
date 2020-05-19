@@ -18,8 +18,8 @@ struct Superblock {
 };
 
 struct Inode {
-  u_int8_t valid = 0;
-  u_int8_t type; // dir or normal file
+  u_int16_t valid = 0;
+  u_int16_t type; // dir or normal file
   u_int32_t size;
   u_int32_t direct_idxs[4];
   u_int32_t indirect_idx;
@@ -37,5 +37,7 @@ struct OpenFile {
   u_int32_t offset;
   u_int32_t inode_idx;
 };
+
+unsigned long myCeil(unsigned long first, unsigned long second);
 
 #endif
