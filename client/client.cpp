@@ -8,9 +8,11 @@ int main(){
     std::cout << test_client_lib(1) << std::endl;
     MFSClient client;
     client.mfs_mount("./mfs");
-    std::cout << client.getAndReserveFirstFreeBlock() << std::endl;
-    std::cout << client.getAndReserveFirstFreeBlock() << std::endl;
-    std::cout << client.getAndReserveFirstFreeBlock() << std::endl;
+    for (int i = 0; i < 8 * 4096 + 12; ++i) {
+        std::cout << client.getAndReserveFirstFreeBlock() << std::endl;
+    }
+
+
 //    int blockSize = 4096;
 //    int blocks = blockSize * 8 + 20;
 //    std::vector<u_int64_t> bitmap(blockSize/sizeof(u_int64_t));

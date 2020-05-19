@@ -108,8 +108,8 @@ int MFSClient::getAndReserveFirstFreeBlock() {
     u_int64_t maxValue = 0xFFFFFFFFFFFFFFFF;
     int blockNumber = 0;
     bool stop = false;
-    for(int i = 0; i < allocationBitmap; ++i) {
 
+    for(int i = 0; i < allocationBitmap; ++i) {
         int unreadBlocksNumber = blocks - (i * blockSize * 8);
         //read allocation bitmap
         //if need read whole block
@@ -127,8 +127,10 @@ int MFSClient::getAndReserveFirstFreeBlock() {
 
         int bitsToRead = blocksToRead;
         for(int k = 0; k < ceil((double)readCount / sizeof(u_int64_t)); ++k) {
-            if((bitmap[k] & maxValue) == maxValue)
+            if((bitmap[k] & maxValue) == maxValue){
+                blockNumber += 64;
                 continue;
+            }
             u_int64_t tmp = 0x8000000000000000;
             int loopEnd = bitsToRead > sizeof(u_int64_t) * 8 ?
                       sizeof(u_int64_t) * 8 :
@@ -138,10 +140,8 @@ int MFSClient::getAndReserveFirstFreeBlock() {
                     throw std::out_of_range("All blocks is occupied");
                 if((bitmap[k] & tmp) == 0) {
                     bitmap[k] |= tmp;
-                    int seekN = lseek(disk, allocationBitmapOffset + i * blockSize, SEEK_SET);
-                    if(seekN < 0)
+                    if(lseek(disk, allocationBitmapOffset + i * blockSize, SEEK_SET) < 0)
                         throw std::ios_base::failure("Cannot seek on allocation bitmap");
-                    int writeN = ;
                     if( write(disk, bitmap.data(), readCount) < 0)
                         throw std::ios_base::failure("Cannot seek on allocation bitmap");
                     stop = true;
