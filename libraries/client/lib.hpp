@@ -13,7 +13,7 @@ public:
   int error;
 
   MFSClient();
-  int mfs_mount(char *path);
+  void mfs_mount(char *path);
 
   int mfs_open(char *name, int mode);
   int mfs_creat(char *name, int mode);
@@ -25,14 +25,35 @@ public:
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
 
+
+
+
 private:
+  int openAndSeek(int offset = 0);
+  int getLowestDescriptor();
+  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
+  int getAndReserveFirstFreeInode();
+  int getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
+
+  u_int32_t blockSize;
+  u_int32_t inodeSize;
+
+  //number of blocks for each objects
+  u_int32_t inodes;
+  u_int32_t inodesBitmap;
+  u_int32_t blocks;
+  u_int32_t allocationBitmap;
+
+  //offsets in bytes
+  u_int32_t inodesBitmapOffset;
+  u_int32_t inodesOffset;
+  u_int32_t allocationBitmapOffset;
+  u_int32_t blocksOffset;
+
   std::string disk_path;
   std::map<u_int32_t, u_int32_t> file_descriptions;
   std::map<u_int32_t, OpenFile> open_files;
   SyncClient sync_client;
-
-  int openAndSkipSuperblock();
-  int getLowestDescriptor();
 };
 
 #endif
