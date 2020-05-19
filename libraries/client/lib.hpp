@@ -26,13 +26,16 @@ public:
   int mfs_rmdir(char *name);
 
 
+
+
 private:
   int openAndSeek(int offset = 0);
   int getLowestDescriptor();
   int getAndReserveFirstFreeBlock(); // returns offset to begin of block
+  int getAndReserveFirstFreeInode();
+  int getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
 
-
-    u_int32_t blockSize;
+  u_int32_t blockSize;
   u_int32_t inodeSize;
 
   //number of blocks for each objects
