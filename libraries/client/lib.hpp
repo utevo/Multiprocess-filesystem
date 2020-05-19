@@ -24,8 +24,13 @@ public:
 
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
+  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
+
 
 private:
+  int openAndSeek(int offset = 0);
+  int getLowestDescriptor();
+
   u_int32_t blockSize;
   u_int32_t inodeSize;
 
@@ -45,11 +50,6 @@ private:
   std::map<u_int32_t, u_int32_t> file_descriptions;
   std::map<u_int32_t, OpenFile> open_files;
   SyncClient sync_client;
-
-  //offset in number of blocks
-  int openAndSeek(int offset = 0);
-  int getLowestDescriptor();
-  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
 };
 
 #endif

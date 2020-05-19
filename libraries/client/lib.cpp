@@ -1,6 +1,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <vector>
+#include <cmath>
 #include "lib.hpp"
 
 #include "../core/sync.hpp"
@@ -84,7 +86,7 @@ int MFSClient::openAndSeek(int offset) {
     int fd = open(disk_path.c_str(), O_RDWR);
     if(fd == -1)
         throw std::ios_base::failure("Cannot open virtual disk");
-    int seek = lseek(fd, offset * blockSize, SEEK_DATA);
+    int seek = lseek(fd, offset, SEEK_CUR);
     if(seek == -1)
         throw std::ios_base::failure("Error during lseek on virtual disk");
     return fd;
@@ -101,8 +103,63 @@ int MFSClient::getAndReserveFirstFreeBlock() {
     int disk = openAndSeek(allocationBitmapOffset);
     sync_client.AllocationBitmapLock();
 
+    std::vector<u_int64_t> bitmap(blockSize/sizeof(u_int64_t));
+
+    u_int64_t maxValue = 0xFFFFFFFFFFFFFFFF;
+    int blockNumber = 0;
+    bool stop = false;
+    for(int i = 0; i < allocationBitmap; ++i) {
+
+        int unreadBlocksNumber = blocks - (i * blockSize * 8);
+        //read allocation bitmap
+        //if need read whole block
+        //otherwise only blocks number of bits
+        int blocksToRead = (unreadBlocksNumber > blockSize * 8) ?
+                bitmap.size() * sizeof(u_int64_t) * 8 :
+                unreadBlocksNumber;
+
+        int readCount = ceil((double)blocksToRead / sizeof(u_int64_t));
+        if(readCount < 8)
+            readCount = 8;
+
+        if(read(disk, bitmap.data(), readCount) < 0)
+            throw std::ios_base::failure("Cannot read allocation bitmap block");
+
+        int bitsToRead = blocksToRead;
+        for(int k = 0; k < ceil((double)readCount / sizeof(u_int64_t)); ++k) {
+            if((bitmap[k] & maxValue) == maxValue)
+                continue;
+            u_int64_t tmp = 0x8000000000000000;
+            int loopEnd = bitsToRead > sizeof(u_int64_t) * 8 ?
+                      sizeof(u_int64_t) * 8 :
+                      bitsToRead;
+            for(int j = 0; i < loopEnd; ++j){
+                if(blockNumber >= blocks)
+                    throw std::out_of_range("All blocks is occupied");
+                if((bitmap[k] & tmp) == 0) {
+                    bitmap[k] |= tmp;
+                    int seekN = lseek(disk, allocationBitmapOffset + i * blockSize, SEEK_SET);
+                    if(seekN < 0)
+                        throw std::ios_base::failure("Cannot seek on allocation bitmap");
+                    int writeN = ;
+                    if( write(disk, bitmap.data(), readCount) < 0)
+                        throw std::ios_base::failure("Cannot seek on allocation bitmap");
+                    stop = true;
+                    break;
+                }
+                tmp >>= 1;
+                blockNumber++;
+            }
+            if(stop)
+                break;
+            bitsToRead -= loopEnd;
+        }
+        if(stop)
+            break;
+    }
     sync_client.AllocationBitmapUnlock();
-    return 0;
+    close(disk);
+    return blockNumber;
 }
 
 
