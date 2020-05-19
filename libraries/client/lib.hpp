@@ -24,14 +24,15 @@ public:
 
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
-  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
 
 
 private:
   int openAndSeek(int offset = 0);
   int getLowestDescriptor();
+  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
 
-  u_int32_t blockSize;
+
+    u_int32_t blockSize;
   u_int32_t inodeSize;
 
   //number of blocks for each objects
