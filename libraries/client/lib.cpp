@@ -186,7 +186,7 @@ void MFSClient::freeInode(unsigned long index) {
     sync_client.InodeBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     try {
-        freeBitmapIndex(disk, inodesBitmapOffset, inodesBitmap, index);
+        freeBitmapIndex(disk, inodesBitmapOffset, index);
 
         //TODO set inode valid as false in inode table
 
@@ -205,7 +205,7 @@ void MFSClient::freeBlock(unsigned long index)  {
     sync_client.AllocationBitmapLock();
     int disk = openAndSeek(allocationBitmapOffset);
     try {
-        freeBitmapIndex(disk, allocationBitmapOffset, allocationBitmap, index);
+        freeBitmapIndex(disk, allocationBitmapOffset, index);
         //TODO clear block
 
     }
