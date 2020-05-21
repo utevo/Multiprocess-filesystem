@@ -11,6 +11,6 @@
 ### launch guide
 1. cd to build folder
 2. build apps
-2. run ./manager to create virtual disk
-3. run ./client to start using filesystem
+3. run ./manager to create virtual disk
+4. run ./client to check some use cases
 
