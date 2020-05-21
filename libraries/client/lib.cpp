@@ -55,7 +55,7 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 
     sync_client.ReadLock(inode_idx);
 
-    // ToDo
+    // TODO
 
     sync_client.ReadUnlock(inode_idx);
 }
@@ -129,7 +129,6 @@ int MFSClient::getAndTakeUpFirstFreeInode() {
     sync_client.InodeBitmapUnlock();
     return inodeNumber;
 }
-
 
 int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount) {
     u_int64_t maxValue = 0xFFFFFFFFFFFFFFFF;
@@ -217,10 +216,7 @@ void MFSClient::freeBlock(unsigned long index)  {
     sync_client.AllocationBitmapUnlock();
 }
 
-void MFSClient::freeBitmapIndex(int disk_fd,
-        u_int32_t offset, u_int32_t sizeInBlocks,
-        unsigned long index) {
-
+void MFSClient::freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) {
     unsigned int blockNumber = index / (blockSize * 8);
     unsigned int indexInBlock = index - (blockNumber * blockSize * 8);
     unsigned int offsetToReadUInt8 = indexInBlock / (sizeof(uint8_t) * 8);

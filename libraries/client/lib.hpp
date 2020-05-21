@@ -36,7 +36,7 @@ private:
 
   void freeInode(unsigned long index);
   void freeBlock(unsigned long index);
-  void freeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, unsigned long index);
+  void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index);
 
 
   u_int32_t blockSize;
