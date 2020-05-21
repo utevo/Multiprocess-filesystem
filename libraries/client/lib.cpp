@@ -100,7 +100,7 @@ int MFSClient::getLowestDescriptor() {
     return lowestFd;
 }
 
-int MFSClient::getAndReserveFirstFreeBlock() {
+int MFSClient::getAndTakeUpFirstFreeBlock() {
     sync_client.AllocationBitmapLock();
     int disk = openAndSeek(allocationBitmapOffset);
     int blockNumber;
@@ -115,7 +115,7 @@ int MFSClient::getAndReserveFirstFreeBlock() {
     return blockNumber;
 }
 
-int MFSClient::getAndReserveFirstFreeInode() {
+int MFSClient::getAndTakeUpFirstFreeInode() {
     sync_client.InodeBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     int inodeNumber;
@@ -156,8 +156,8 @@ int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t 
                 indexNumber += 64;
                 continue;
             }
-            u_int64_t tmp = 0x8000000000000000;
-            while (tmp > 0) {
+            u_int64_t tmp = 0x0000000000000001;
+            while (tmp <= maxValue) {
                 if(indexNumber >= amount)
                     throw std::out_of_range("");
                 if((bitmap[k] & tmp) == 0) {
@@ -169,7 +169,7 @@ int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t 
                     stop = true;
                     break;
                 }
-                tmp >>= 1;
+                tmp <<= 1;
                 indexNumber++;
             }
             if(stop)
@@ -179,6 +179,69 @@ int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t 
             break;
     }
     return indexNumber;
+}
+
+void MFSClient::freeInode(unsigned long index) {
+    if(index > inodes)
+        throw std::invalid_argument("Inode index is greater than number of inodes");
+    sync_client.InodeBitmapLock();
+    int disk = openAndSeek(inodesBitmapOffset);
+    try {
+        freeBitmapIndex(disk, inodesBitmapOffset, inodesBitmap, index);
+
+        //TODO set inode valid as false in inode table
+
+    }
+    catch (std::out_of_range&) {
+        throw std::out_of_range("Inode has already freed");
+    }
+    close(disk);
+    sync_client.InodeBitmapUnlock();
+
+}
+
+void MFSClient::freeBlock(unsigned long index)  {
+    if(index > blocks)
+        throw std::invalid_argument("Block index is greater than number of blocks");
+    sync_client.AllocationBitmapLock();
+    int disk = openAndSeek(allocationBitmapOffset);
+    try {
+        freeBitmapIndex(disk, allocationBitmapOffset, allocationBitmap, index);
+        //TODO clear block
+
+    }
+    catch (std::out_of_range&) {
+        throw std::out_of_range("Block has already freed");
+    }
+    close(disk);
+    sync_client.AllocationBitmapUnlock();
+}
+
+void MFSClient::freeBitmapIndex(int disk_fd,
+        u_int32_t offset, u_int32_t sizeInBlocks,
+        unsigned long index) {
+
+    unsigned int blockNumber = index / (blockSize * 8);
+    unsigned int indexInBlock = index - (blockNumber * blockSize * 8);
+    unsigned int offsetToReadUInt8 = indexInBlock / (sizeof(uint8_t) * 8);
+    u_int8_t bitmap;
+
+    if(lseek(disk_fd, offset + blockNumber * blockSize + offsetToReadUInt8, SEEK_SET) < 0)
+        throw std::ios_base::failure("Cannot seek bitmap block");
+    if(read(disk_fd, &bitmap, sizeof(u_int8_t)) < 0)
+        throw std::ios_base::failure("Cannot read bitmap block");
+
+    unsigned int positionInBitmap = index % 8;
+    u_int8_t tmp = 0x01;
+    tmp <<= positionInBitmap;
+    tmp = ~tmp;
+
+    bitmap &= tmp;
+    //TODO throw if index has already freed
+    if(lseek(disk_fd, offset + blockNumber * blockSize + offsetToReadUInt8, SEEK_SET) < 0)
+        throw std::ios_base::failure("Cannot seek bitmap block");
+    if(write(disk_fd, &bitmap, sizeof(u_int8_t)) < 0)
+        throw std::ios_base::failure("Cannot write bitmap block");
 }
 
 

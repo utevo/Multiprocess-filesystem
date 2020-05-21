@@ -25,15 +25,19 @@ public:
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
 
-
-
-
 private:
   int openAndSeek(int offset = 0);
   int getLowestDescriptor();
-  int getAndReserveFirstFreeBlock(); // returns offset to begin of block
-  int getAndReserveFirstFreeInode();
+
+  int getAndTakeUpFirstFreeInode(); //return inode number
+    //TODO think about: get n blocks by one call and return vector?
+  int getAndTakeUpFirstFreeBlock(); //returns block number
   int getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
+
+  void freeInode(unsigned long index);
+  void freeBlock(unsigned long index);
+  void freeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, unsigned long index);
+
 
   u_int32_t blockSize;
   u_int32_t inodeSize;
