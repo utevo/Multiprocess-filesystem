@@ -28,11 +28,15 @@ public:
 private:
   int openAndSeek(int offset = 0);
   int getLowestDescriptor();
+  FileStatus getStatus(int mode);
 
-  int getAndTakeUpFirstFreeInode(); //return inode number
+  u_int32_t getInode(char *path);
+  u_int32_t getDirectory(char *path);
+
+  u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?
-  int getAndTakeUpFirstFreeBlock(); //returns block number
-  int getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
+  u_int32_t getAndTakeUpFirstFreeBlock(); //returns block number
+  u_int32_t getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
 
   void freeInode(unsigned long index);
   void freeBlock(unsigned long index);

@@ -13,6 +13,9 @@ extern int test_client_lib(int x) { return 1 * x; }
 extern const u_int32_t kBlockSize;
 extern const u_int32_t kInodeSize;
 
+const unsigned NORMAL_FILE = 0;
+const unsigned DIRECTORY = 1;
+
 MFSClient::MFSClient() {
     error = 0;
 }
@@ -41,11 +44,50 @@ void MFSClient::mfs_mount(char *path) {
 }
 
 int MFSClient::mfs_open(char *name, int mode) {
-    return 0;
+    try{
+        u_int32_t inodeIndex = getInode(name);
+        OpenFile openFile{ getStatus(mode), 0, inodeIndex};
+        int fd = getLowestDescriptor();
+        open_files.insert({fd, openFile});
+        return fd;
+    }
+    catch (std::invalid_argument&) {
+        return -1;
+    }
+}
+FileStatus MFSClient::getStatus(int mode) {
+    if(mode == FileStatus::WRONLY)
+        return FileStatus::WRONLY;
+    else if(mode == FileStatus::RDONLY)
+        return FileStatus::RDONLY;
+    else if(mode == FileStatus::RDWR)
+        return FileStatus::RDWR;
+    else
+        throw std::invalid_argument("Wrong file open mode");
 }
 
 int MFSClient::mfs_creat(char *name, int mode) {
-    return 0;
+    u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
+    sync_client.WriteLock(inodeIndex);
+
+    int disk = openAndSeek(inodes + inodeIndex * inodeSize);
+    Inode inode;
+    inode.valid = 1;
+    inode.type = NORMAL_FILE;
+    inode.size = 0;
+
+    int result = write(disk, &inode, sizeof(Inode));
+    close(disk);
+    if(result < 0)
+        return -1;
+    //TODO add reference in directory
+
+    OpenFile openFile{ WRONLY, 0, inodeIndex};
+    int fd = getLowestDescriptor();
+    open_files.insert({fd, openFile});
+
+    sync_client.WriteUnlock(inodeIndex);
+    return fd;
 }
 
 int MFSClient::mfs_read(int fd, char *buf, int len) {
@@ -99,7 +141,16 @@ int MFSClient::getLowestDescriptor() {
     return lowestFd;
 }
 
-int MFSClient::getAndTakeUpFirstFreeBlock() {
+u_int32_t MFSClient::getInode(char *path) {
+    return 0;
+}
+
+u_int32_t MFSClient::getDirectory(char *path) {
+    return 0;
+}
+
+
+u_int32_t MFSClient::getAndTakeUpFirstFreeBlock() {
     sync_client.AllocationBitmapLock();
     int disk = openAndSeek(allocationBitmapOffset);
     int blockNumber;
@@ -114,7 +165,7 @@ int MFSClient::getAndTakeUpFirstFreeBlock() {
     return blockNumber;
 }
 
-int MFSClient::getAndTakeUpFirstFreeInode() {
+u_int32_t MFSClient::getAndTakeUpFirstFreeInode() {
     sync_client.InodeBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     int inodeNumber;
@@ -129,7 +180,7 @@ int MFSClient::getAndTakeUpFirstFreeInode() {
     return inodeNumber;
 }
 
-int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount) {
+u_int32_t MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount) {
     u_int64_t maxValue = 0xFFFFFFFFFFFFFFFF;
     unsigned long indexNumber = 0;
 
@@ -180,14 +231,14 @@ int MFSClient::getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t 
 }
 
 void MFSClient::freeInode(unsigned long index) {
-    if(index > inodes)
-        throw std::invalid_argument("Inode index is greater than number of inodes");
+    if(index > inodes || index < 0)
+        throw std::invalid_argument("Invalid inode index");
     sync_client.InodeBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     try {
         freeBitmapIndex(disk, inodesBitmapOffset, index);
 
-        //TODO set inode valid as false in inode table
+        //TODO set inode valid as true in inode table
 
     }
     catch (std::out_of_range&) {
@@ -198,8 +249,8 @@ void MFSClient::freeInode(unsigned long index) {
 }
 
 void MFSClient::freeBlock(unsigned long index)  {
-    if(index > blocks)
-        throw std::invalid_argument("Block index is greater than number of blocks");
+    if(index > blocks || index < 0)
+        throw std::invalid_argument("Invalid block index");
     sync_client.AllocationBitmapLock();
     int disk = openAndSeek(allocationBitmapOffset);
     try {
@@ -237,6 +288,9 @@ void MFSClient::freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long ind
     if(write(disk_fd, &bitmap, sizeof(u_int8_t)) < 0)
         throw std::ios_base::failure("Cannot write bitmap block");
 }
+
+
+
 
 
 
