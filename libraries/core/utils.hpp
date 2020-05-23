@@ -19,7 +19,7 @@ struct Superblock {
 
 struct Inode {
   u_int16_t valid = 0;
-  u_int16_t type; // dir or normal file
+  u_int16_t type; // dir or normal file, 0 - file, 1 dir
   u_int32_t size;
   u_int32_t direct_idxs[4];
   u_int32_t indirect_idx;
@@ -27,9 +27,9 @@ struct Inode {
 };
 
 enum FileStatus: u_int8_t {
-  RDONLY,
-  WRONLY,
-  RDWR
+  RDONLY = 0x1,
+  WRONLY = 0x2,
+  RDWR = 0x4,
 };
 
 struct OpenFile {
