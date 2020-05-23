@@ -17,7 +17,3 @@ void SyncClient::AllocationBitmapUnlock() {}
 void SyncClient::InodeBitmapLock() {}
 
 void SyncClient::InodeBitmapUnlock() {}
-
-
-
-}
