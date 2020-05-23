@@ -49,8 +49,7 @@ int MFSClient::mfs_creat(char *name, int mode) {
 }
 
 int MFSClient::mfs_read(int fd, char *buf, int len) {
-    u_int32_t open_file_idx = file_descriptions.at(fd);
-    OpenFile open_file = open_files.at(open_file_idx);
+    OpenFile open_file = open_files.at(fd);
     u_int32_t inode_idx = open_file.inode_idx;
 
     sync_client.ReadLock(inode_idx);
@@ -95,7 +94,7 @@ int MFSClient::openAndSeek(int offset) {
 
 int MFSClient::getLowestDescriptor() {
     int lowestFd = 1;
-    while (file_descriptions.find(lowestFd) != file_descriptions.end())
+    while (open_files.find(lowestFd) != open_files.end())
         ++lowestFd;
     return lowestFd;
 }
