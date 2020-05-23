@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/client/lib.cpp
+sys/types.h
+-
+unistd.h
+-
+fcntl.h
+-
+vector
+-
+cmath
+-
+lib.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/client/lib.hpp
+../core/sync.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+../core/utils.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/client/lib.hpp
+map
+-
+../core/utils.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+../core/sync.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+iostream
+-
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+iostream
+-
+

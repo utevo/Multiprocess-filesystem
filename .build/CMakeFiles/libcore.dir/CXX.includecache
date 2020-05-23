@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.cpp
+sync.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+iostream
+-
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+iostream
+-
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.cpp
+sync.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/sync.hpp
+utils.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+iostream
+-
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+iostream
+-
+

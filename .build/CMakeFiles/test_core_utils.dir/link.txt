@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/test_core_utils.dir/tests/test_core_utils.cpp.o  -o test_core_utils  liblibcore.a liblibclient.a liblibmanager.a liblibcore.a 

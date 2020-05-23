@@ -1,0 +1,2 @@
+/usr/bin/ar qc liblibcore.a  CMakeFiles/libcore.dir/libraries/core/sync.cpp.o CMakeFiles/libcore.dir/libraries/core/utils.cpp.o
+/usr/bin/ranlib liblibcore.a

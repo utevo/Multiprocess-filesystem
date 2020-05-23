@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+iostream
+-
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/manager/lib.cpp
+lib.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/manager/lib.hpp
+cmath
+-
+fcntl.h
+-
+ios
+-
+iostream
+-
+sys/stat.h
+-
+sys/types.h
+-
+unistd.h
+-
+../core/utils.hpp
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/core/utils.hpp
+
+/home/jeff/Desktop/Multiprocess-filesystem/libraries/manager/lib.hpp
+cstdint
+-
+string
+-
+
