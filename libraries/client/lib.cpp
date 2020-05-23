@@ -196,7 +196,6 @@ void MFSClient::freeInode(unsigned long index) {
     }
     close(disk);
     sync_client.InodeBitmapUnlock();
-
 }
 
 void MFSClient::freeBlock(unsigned long index)  {
