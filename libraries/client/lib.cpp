@@ -114,6 +114,25 @@ int MFSClient::mfs_unlink(char *name) {
 }
 
 int MFSClient::mfs_mkdir(char *name) {
+    u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
+    sync_client.WriteLock(inodeIndex);
+
+    int disk = openAndSeek(inodes + inodeIndex * inodeSize);
+    Inode inode;
+    inode.valid = 1;
+    inode.type = DIRECTORY;
+    inode.size = 0; //TODO determine size
+
+    int result = write(disk, &inode, sizeof(Inode));
+    close(disk);
+    if(result < 0)
+        return -1;
+    //TODO add reference in directory
+
+    //TODO add .
+    //TODO add ..
+
+    sync_client.WriteUnlock(inodeIndex);
     return 0;
 }
 
