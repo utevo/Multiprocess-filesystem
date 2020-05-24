@@ -71,7 +71,6 @@ int MFSClient::mfs_creat(char *name, int mode) {
 
     Inode directoryInode;
     addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
-    sync_client.WriteUnlock(directoryInodeIndex);
 
     Inode inode;
     inode.valid = 1;
