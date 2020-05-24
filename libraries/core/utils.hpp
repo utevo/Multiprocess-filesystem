@@ -2,6 +2,7 @@
 #define UTILS_HPP
 
 #include <iostream>
+#include <vector>
 
 extern const u_int32_t kBlockSize;
 extern const u_int32_t kInodeSize;
@@ -39,5 +40,7 @@ struct OpenFile {
 };
 
 unsigned long myCeil(unsigned long first, unsigned long second);
+std::vector<std::string> split(const std::string& str, char separator);
+std::string trim(const std::string& s);
 
 #endif

@@ -2,9 +2,9 @@
 #define CLIENT_LIB_HPP
 
 #include <map>
-
 #include "../core/utils.hpp"
 #include "../core/sync.hpp"
+#include "Handler.h"
 
 extern int test_client_lib(int x);
 
@@ -26,21 +26,22 @@ public:
   int mfs_rmdir(char *name);
 
 private:
-  int openAndSeek(int offset = 0);
-  int getLowestDescriptor();
-  FileStatus getStatus(int mode);
+  int openAndSeek(const int& offset = 0) const;
+  int getLowestDescriptor() const;
 
-  u_int32_t getInode(char *path);
-  u_int32_t getDirectory(char *path);
+  u_int32_t getInode(std::string path);
+  u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
+
+  void addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name);
 
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?
   u_int32_t getAndTakeUpFirstFreeBlock(); //returns block number
-  u_int32_t getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount);
+  u_int32_t getFirstFreeBitmapIndex(int disk_fd, u_int32_t offset, u_int32_t sizeInBlocks, u_int32_t amount) const;
 
   void freeInode(unsigned long index);
   void freeBlock(unsigned long index);
-  void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index);
+  void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const;
 
 
   u_int32_t blockSize;
