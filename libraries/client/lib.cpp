@@ -64,23 +64,13 @@ int MFSClient::mfs_creat(char *name, int mode) {
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
 
     int disk = openAndSeek();
+
     std::string path = Handler::getDirectory(name);
-
+    std::string filename = Handler::getFileName(name);
     u_int32_t directoryInodeIndex = getInode(std::string(name));
+
     Inode directoryInode;
-    sync_client.WriteLock(directoryInodeIndex);
-    if(lseek(disk, inodesOffset + inodeIndex * inodeSize, SEEK_SET) < 0) {
-        close(disk);
-        sync_client.WriteUnlock(directoryInodeIndex);
-        throw std::ios_base::failure("Cannot seek on virtual disk");
-    }
-    if(read(disk, &directoryInode, sizeof(Inode)) < 0) {
-        close(disk);
-        sync_client.WriteUnlock(directoryInodeIndex);
-        throw std::ios_base::failure("Cannot seek on virtual disk");
-    }
-
-
+    addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
     sync_client.WriteUnlock(directoryInodeIndex);
 
     Inode inode;
@@ -168,6 +158,7 @@ u_int32_t MFSClient::getInode(std::string path) {
 u_int32_t MFSClient::getInodeFromDirectoryByName(const int& disk_fd,
         const std::string& filename,
         const u_int32_t& directoryInode) {
+
     sync_client.ReadLock(directoryInode);
     if(lseek(disk_fd, inodesOffset + directoryInode * inodeSize, SEEK_SET) < 0) {
         sync_client.ReadUnlock(directoryInode);
@@ -229,7 +220,7 @@ u_int32_t MFSClient::getAndTakeUpFirstFreeBlock() {
     sync_client.AllocationBitmapUnlock();
     return blockNumber;
 }
-void MFSClient::addInodeToDirectory(const u_int32_t& directoryInode) {
+void MFSClient::addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name) {
 
 }
 
