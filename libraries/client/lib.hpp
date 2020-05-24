@@ -2,7 +2,6 @@
 #define CLIENT_LIB_HPP
 
 #include <map>
-
 #include "../core/utils.hpp"
 #include "../core/sync.hpp"
 #include "Handler.h"

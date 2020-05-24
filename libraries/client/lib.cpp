@@ -85,8 +85,6 @@ int MFSClient::mfs_creat(char *name, int mode) {
         return -1;
     sync_client.WriteUnlock(inodeIndex);
 
-    //TODO add reference in directory
-
     OpenFile openFile{ WRONLY, 0, inodeIndex};
     int fd = getLowestDescriptor();
     open_files.insert({fd, openFile});
