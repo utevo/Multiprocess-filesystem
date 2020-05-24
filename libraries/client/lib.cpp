@@ -42,8 +42,9 @@ void MFSClient::mfs_mount(char *path) {
         throw std::ios_base::failure("Cannot read block size from super block");
     blocksOffset = allocationBitmapOffset + allocationBitmap * blockSize;
     close(fd);
-    //create root directory as inode which index is 0
-    mfs_mkdir("/");
+
+    //TODO create root directory as inode which index is 0
+    //manually do mfs_mkdir("/")
 }
 
 int MFSClient::mfs_open(char *name, int mode) {
@@ -130,6 +131,9 @@ int MFSClient::mfs_mkdir(char *name) {
         return -1;
     //TODO add reference in directory
 
+    u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+    int disk = openAndSeek(blocks + blockIndex * blockSize);
+    
     //TODO add .
     //TODO add ..
 
@@ -143,7 +147,7 @@ int MFSClient::mfs_rmdir(char *name) {
 
 int MFSClient::openAndSeek(const int& offset) const {
     if(offset < 0)
-        throw std::invalid_argument("Offset cannot be lower than zero");
+        throw std::invalid_argument("Offset cannot be less than zero");
 
     int fd = open(disk_path.c_str(), O_RDWR);
     if(fd == -1)
