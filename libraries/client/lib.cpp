@@ -132,7 +132,7 @@ int MFSClient::mfs_mkdir(char *name) {
     //TODO add reference in directory
 
     u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
-    int disk = openAndSeek(blocks + blockIndex * blockSize);
+    disk = openAndSeek(blocks + blockIndex * blockSize);
     
     //TODO add .
     //TODO add ..
