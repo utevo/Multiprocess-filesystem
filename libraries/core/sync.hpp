@@ -3,7 +3,8 @@
 
 #include <iostream>
 
-void InitSync(std::string path);
+extern void InitSync(std::string path);
+extern void RemoveSync(std::string path);
 
 class SyncClient {
 public:

@@ -10,6 +10,10 @@
 
 #include "../core/utils.hpp"
 
+#include "../core/sync.hpp"
+
+
+
 u_int CalcInodeBitmapBlocks(u_int inodes_blocks) noexcept {
   u_int inodes_in_one_block = kBlockSize / kInodeSize;
   u_int inodes = inodes_blocks * inodes_in_one_block;
@@ -71,6 +75,14 @@ void AppendDataBlocks(int fd, u_int data_blocks) {
   } catch (std::iostream::failure e) {
     throw std::iostream::failure("Couldn't add data blocks");
   }
+}
+
+extern void InitSynchronization(const std::string path) {
+  InitSync(path);
+}
+
+extern void RemoveSynchronization(const std::string path) {
+  RemoveSync(path);
 }
 
 extern void CreateFS(std::string path, u_int inodes_blocks, u_int data_blocks) {
