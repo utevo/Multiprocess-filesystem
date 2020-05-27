@@ -129,13 +129,20 @@ int MFSClient::mfs_mkdir(char *name) {
     close(disk);
     if(result < 0)
         return -1;
-    //TODO add reference in directory
+
+    //TODO add reference in directory:
+    //addKidInodeToParent(inodeIndexKid, inodeIndexParent);
 
     u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+
+    //write ., .. references in directory memory block:
     disk = openAndSeek(blocks + blockIndex * blockSize);
-    
-    //TODO add .
-    //TODO add ..
+    u_int32_t buf[16] = {0,0,0,0,0,0,0,0};
+    buf[0] = inodeIndex; //reference to .
+    buf[1] = '.';
+    buf[8] = inodeIndex; //TODO add reference to .., getInode(string path) needed
+    buf[9] = '.'+256*'.';
+    write(disk, &buf, sizeof(buf));
 
     sync_client.WriteUnlock(inodeIndex);
     return 0;
