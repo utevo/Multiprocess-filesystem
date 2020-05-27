@@ -6,6 +6,8 @@
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <vector>
+#include <string>
+
 
 const int kProjecId = 0x1a4;
 
@@ -18,7 +20,7 @@ std::vector<u_int8_t> SerializeLong(long value) {
   return result;
 }
 
-std::vector<u_int8_t> GenerateBuf(long mtype, std::vector<u_int8_t> data_) {
+std::vector<u_int8_t> GenerateMessageBuf(long mtype, std::vector<u_int8_t> data_) {
   std::vector<u_int8_t> result;
 
   std::vector<u_int8_t> serialised_mtype = SerializeLong(mtype);
@@ -35,7 +37,7 @@ public:
       : mtype_(mtype), data_(data) {}
 
   const void *getMsgp() {
-    buf_ = GenerateBuf(mtype_, data_);
+    buf_ = GenerateMessageBuf(mtype_, data_);
     return buf_.data();
   }
 
@@ -47,41 +49,81 @@ private:
   std::vector<u_int8_t> buf_;
 };
 
-long CalcLockMType(int inode) { return inode * 3 + 0; }
+long CalcLockMType(int inode) { return (inode + 1) * 3 + 0; }
 
-long CalcStateMType(int inode) { return inode * 3 + 1; }
+long CalcStateMType(int inode) { return (inode + 1) * 3 + 1; }
 
-long CalcCondWriterMType(int inode) { return inode * 3 + 2; }
+long CalcCondWriterMType(int inode) { return (inode + 1) * 3 + 2; }
 
 void SendMessage(int msqid, Message message) {
   int result = msgsnd(msqid, message.getMsgp(), message.getMsgsz(), IPC_NOWAIT);
   if (result == -1) {
-    throw std::runtime_error("Couldn't send message");
+    throw std::runtime_error("Couldn't send message. Errno: " + std::to_string(errno));
   }
 }
 
-void SendEmptyMessage(long mtype) {}
-
-void SendLock(long mtype) { SendEmptyMessage(mtype); }
-
-void SendState(long mtype, bool reader, u_int8_t writers) {}
-
-void SendCondWriter(long mtype) { SendEmptyMessage(mtype); }
-
-void InitLock(long inode) {
-  int mtype = CalcLockMType(inode);
-  SendLock(mtype);
+void SendEmptyMessage(int msqid, long mtype) {
+  Message message = Message(mtype, {});
+  SendMessage(msqid, message);
 }
 
-void InitState(long inode) { int mtype = CalcStateMType(inode); }
+void RecieveEmptyMessage(int msqid, long mtype) {
+  const size_t buf_size = sizeof(long) + 0;
+  char buf[buf_size];
 
-void InitCondWriter(long inode) { int mtype = CalcCondWriterMType(inode); }
+  int result = msgrcv(msqid, &buf, buf_size, mtype, 0);
+  if (result == -1) {
+    std::runtime_error("Couldn't recieve message");
+  }
+}
 
-void InitInodesConcurrencyControl(key_t msqid, int inodes) {
+void SendLock(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
+
+void SendState(int msqid, long mtype, bool reader, u_int8_t writers) {
+  Message message = Message(mtype, {(u_int8_t)reader, writers});
+  SendMessage(msqid, message);
+}
+
+void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
+
+void RecieveLock(int msqid, long mtype) { RecieveEmptyMessage(msqid, mtype); }
+
+struct State {
+  bool reader;
+  char writers;
+};
+
+State RecieveState(int msqid, long mtype) {
+  const size_t buf_size = sizeof(long) + 2;
+  char buf[buf_size];
+
+  int result = msgrcv(msqid, &buf, buf_size, mtype, 0);
+  if (result == -1) {
+    std::runtime_error("Couldn't recieve message");
+  }
+  int reader_idx = sizeof(long);
+  bool reader = buf[reader_idx];
+  int writers_idx = sizeof(long) + sizeof(bool);
+  char writers = buf[writers_idx];
+
+  State state = {reader, writers};
+  return state;
+}
+
+void RecieveCondWriter(int msqid, long mtype) {
+  RecieveEmptyMessage(msqid, mtype);
+}
+
+void InitInodesSync(key_t msqid, int inodes) { // ToDo: make it work
   for (int inode = 0; inode < inodes; ++inode) {
-    InitLock(inode);
-    InitState(inode);
-    InitCondWriter(inode);
+    long lock_mtype = CalcLockMType(inode);
+    SendLock(msqid, lock_mtype);
+
+    // long state_mtype = CalcStateMType(inode);
+    // SendState(msqid, state_mtype, 0, 0);
+
+    // long cond_writer_mtype = CalcCondWriterMType(inode);
+    // SendCondWriter(msqid, cond_writer_mtype);
   }
 }
 
@@ -95,10 +137,9 @@ extern void InitSync(const std::string path) {
   if (msqid == -1) {
     throw std::logic_error("Couldn't create msqid");
   }
-  std::cout << "msqid: " << msqid << std::endl;
 
-  int inodes = 10;
-  InitInodesConcurrencyControl(msq_key, inodes);
+  int inodes = 13;
+  InitInodesSync(msq_key, inodes);
 }
 
 extern void RemoveSync(const std::string path) {

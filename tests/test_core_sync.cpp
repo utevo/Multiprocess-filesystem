@@ -14,13 +14,13 @@ bool TestSerializeLong() {
   assert(are_equal);
 }
 
-bool TestGenerateBuf() {
+bool TestGenerateMessageBuf() {
   long mtype = 0x02;
   std::vector<u_int8_t> data = {0x01, 0x02, 0xFF};
-  std::vector<u_int8_t> expected_buf = {0x02, 0x00, 0x00, 0x00, 0x00,
-                                        0x00, 0x00, 0x00, 0x01, 0x02, 0xFF};
+  std::vector<u_int8_t> expected_buf = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                        0x00, 0x00, 0x01, 0x02, 0xFF};
 
-  std::vector<u_int8_t> buf = GenerateBuf(mtype, data);
+  std::vector<u_int8_t> buf = GenerateMessageBuf(mtype, data);
 
   bool are_equal = (buf == expected_buf);
   assert(are_equal);
@@ -28,5 +28,5 @@ bool TestGenerateBuf() {
 
 int main() {
   assert(TestSerializeLong());
-  assert(TestGenerateBuf());
+  assert(TestGenerateMessageBuf());
 }

@@ -5,7 +5,7 @@
 #include <vector>
 
 std::vector<u_int8_t> SerializeLong(long value);
-std::vector<u_int8_t> GenerateBuf(long mtype, std::vector<u_int8_t> data_);
+std::vector<u_int8_t> GenerateMessageBuf(long mtype, std::vector<u_int8_t> data_);
 
 extern void InitSync(const std::string path);
 extern void RemoveSync(const std::string path);
