@@ -114,16 +114,17 @@ void RecieveCondWriter(int msqid, long mtype) {
   RecieveEmptyMessage(msqid, mtype);
 }
 
-void InitInodesSync(key_t msqid, int inodes) { // ToDo: make it work
+void InitInodesSync(key_t msqid, int inodes) {
   for (int inode = 0; inode < inodes; ++inode) {
     long lock_mtype = CalcLockMType(inode);
+    std::cout << msqid << std::endl;
     SendLock(msqid, lock_mtype);
+    
+    long state_mtype = CalcStateMType(inode);
+    SendState(msqid, state_mtype, 0, 0);
 
-    // long state_mtype = CalcStateMType(inode);
-    // SendState(msqid, state_mtype, 0, 0);
-
-    // long cond_writer_mtype = CalcCondWriterMType(inode);
-    // SendCondWriter(msqid, cond_writer_mtype);
+    long cond_writer_mtype = CalcCondWriterMType(inode);
+    SendCondWriter(msqid, cond_writer_mtype);
   }
 }
 
@@ -139,7 +140,7 @@ extern void InitSync(const std::string path) {
   }
 
   int inodes = 13;
-  InitInodesSync(msq_key, inodes);
+  InitInodesSync(msqid, inodes);
 }
 
 extern void RemoveSync(const std::string path) {
