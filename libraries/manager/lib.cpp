@@ -85,7 +85,7 @@ extern void RemoveSynchronization(const std::string path) {
   RemoveSync(path);
 }
 
-extern void CreateFS(std::string path, u_int inodes_blocks, u_int data_blocks) {
+extern void CreateFS(const std::string path, u_int inodes_blocks, u_int data_blocks) {
   u_int inode_bitmap_blocks = CalcInodeBitmapBlocks(inodes_blocks);
   u_int allocation_bitmap_blocks = CalcAllocationBitmapBlocks(data_blocks);
 

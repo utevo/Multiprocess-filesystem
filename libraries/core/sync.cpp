@@ -53,18 +53,19 @@ extern void InitSync(const std::string path) {
   if (msqid == -1) {
     throw std::logic_error("Couldn't create msqid");
   }
+  std::cout << "msqid: " << msqid << std::endl;
 
   int inodes = 10;
   InitInodesConcurrencyControl(msq_key, inodes);
 }
 
-extern void RemoveSync(std::string path) { // ToDO: make to work
+extern void RemoveSync(const std::string path) {
   key_t msq_key = ftok(path.c_str(), kProjecId);
   if (msq_key == -1) {
     throw std::logic_error("Couldn't generate msq_key");
   }
 
-  int msqid = msgget(msq_key, IPC_CREAT | 0600);
+  int msqid = msgget(msq_key, 0);
   if (msqid == -1) {
     throw std::logic_error("Couldn't create msqid");
   }
