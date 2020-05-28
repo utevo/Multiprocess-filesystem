@@ -1,9 +1,0 @@
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/rebuild_cache.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/edit_cache.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/test_manager_lib.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/test_core_utils.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/client.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/libcore.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/libclient.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/libmanager.dir
-/home/jeff/Desktop/Multiprocess-filesystem/.build/CMakeFiles/manager.dir
