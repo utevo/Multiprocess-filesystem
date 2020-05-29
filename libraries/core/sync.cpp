@@ -80,8 +80,13 @@ void RecieveEmptyMessage(int msqid, long mtype) {
 
 void SendLock(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
-void SendState(int msqid, long mtype, bool reader, u_int8_t writers) {
-  Message message = Message(mtype, {(u_int8_t)reader, writers});
+struct State {
+  bool reader;
+  u_int8_t writers;
+};
+
+void SendState(int msqid, long mtype, State state) {
+  Message message = Message(mtype, {(u_int8_t)state.reader, state.writers});
   SendMessage(msqid, message);
 }
 
@@ -89,10 +94,7 @@ void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
 void RecieveLock(int msqid, long mtype) { RecieveEmptyMessage(msqid, mtype); }
 
-struct State {
-  bool reader;
-  char writers;
-};
+
 
 State RecieveState(int msqid, long mtype) {
   const size_t buf_size = sizeof(long) + 2;
@@ -118,11 +120,11 @@ void RecieveCondWriter(int msqid, long mtype) {
 void InitInodesSync(key_t msqid, int inodes) {
   for (int inode = 0; inode < inodes; ++inode) {
     long lock_mtype = CalcLockMType(inode);
-    std::cout << msqid << std::endl;
     SendLock(msqid, lock_mtype);
 
     long state_mtype = CalcStateMType(inode);
-    SendState(msqid, state_mtype, 0, 0);
+    State state = {0, 0};
+    SendState(msqid, state_mtype, state);
 
     long cond_writer_mtype = CalcCondWriterMType(inode);
     SendCondWriter(msqid, cond_writer_mtype);
