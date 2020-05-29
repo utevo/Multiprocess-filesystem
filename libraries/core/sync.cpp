@@ -2,12 +2,11 @@
 
 #include <exception>
 #include <iostream>
+#include <string>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <vector>
-#include <string>
-
 
 const int kProjecId = 0x1a4;
 
@@ -20,7 +19,8 @@ std::vector<u_int8_t> SerializeLong(long value) {
   return result;
 }
 
-std::vector<u_int8_t> GenerateMessageBuf(long mtype, std::vector<u_int8_t> data_) {
+std::vector<u_int8_t> GenerateMessageBuf(long mtype,
+                                         std::vector<u_int8_t> data_) {
   std::vector<u_int8_t> result;
 
   std::vector<u_int8_t> serialised_mtype = SerializeLong(mtype);
@@ -58,7 +58,8 @@ long CalcCondWriterMType(int inode) { return (inode + 1) * 3 + 2; }
 void SendMessage(int msqid, Message message) {
   int result = msgsnd(msqid, message.getMsgp(), message.getMsgsz(), IPC_NOWAIT);
   if (result == -1) {
-    throw std::runtime_error("Couldn't send message. Errno: " + std::to_string(errno));
+    throw std::runtime_error("Couldn't send message. Errno: " +
+                             std::to_string(errno));
   }
 }
 
@@ -119,7 +120,7 @@ void InitInodesSync(key_t msqid, int inodes) {
     long lock_mtype = CalcLockMType(inode);
     std::cout << msqid << std::endl;
     SendLock(msqid, lock_mtype);
-    
+
     long state_mtype = CalcStateMType(inode);
     SendState(msqid, state_mtype, 0, 0);
 
@@ -128,7 +129,7 @@ void InitInodesSync(key_t msqid, int inodes) {
   }
 }
 
-extern void InitSync(const std::string path) {
+int CreateMsq(const std::string path) {
   key_t msq_key = ftok(path.c_str(), kProjecId);
   if (msq_key == -1) {
     throw std::logic_error("Couldn't generate msq_key");
@@ -139,11 +140,10 @@ extern void InitSync(const std::string path) {
     throw std::logic_error("Couldn't create msqid");
   }
 
-  int inodes = 13;
-  InitInodesSync(msqid, inodes);
+  return msqid;
 }
 
-extern void RemoveSync(const std::string path) {
+int ReadMsq(const std::string path) {
   key_t msq_key = ftok(path.c_str(), kProjecId);
   if (msq_key == -1) {
     throw std::runtime_error("Couldn't generate msq_key");
@@ -153,6 +153,19 @@ extern void RemoveSync(const std::string path) {
   if (msqid == -1) {
     throw std::runtime_error("Couldn't create msqid");
   }
+
+  return msqid;
+}
+
+extern void InitSync(const std::string path) {
+  int msqid = CreateMsq(path);
+
+  int inodes = 13; // ToDo: need read number of inodes from fs
+  InitInodesSync(msqid, inodes);
+}
+
+extern void RemoveSync(const std::string path) {
+  int msqid = ReadMsq(path);
 
   struct msqid_ds buf;
   int result = msgctl(msqid, IPC_RMID, &buf);
