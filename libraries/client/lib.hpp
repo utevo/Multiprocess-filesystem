@@ -33,6 +33,7 @@ private:
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 
   void addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name);
+  void removeInodeFromDirectory(const u_int32_t& directoryInode, const u_int32_t& inode);
 
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?

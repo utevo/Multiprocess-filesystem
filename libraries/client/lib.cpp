@@ -63,14 +63,12 @@ int MFSClient::mfs_open(char *name, int mode) {
 
 int MFSClient::mfs_creat(char *name, int mode) {
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
-
     int disk = openAndSeek();
 
     std::string path = Handler::getDirectory(name);
     std::string filename = Handler::getFileName(name);
     u_int32_t directoryInodeIndex = getInode(std::string(name));
 
-    Inode directoryInode;
     addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
 
     Inode inode;
@@ -244,6 +242,10 @@ void MFSClient::addInodeToDirectory(const u_int32_t& directoryInode, const u_int
 
 }
 
+void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInode, const u_int32_t& inode) {
+
+}
+
 u_int32_t MFSClient::getAndTakeUpFirstFreeInode() {
     sync_client.InodeBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
@@ -318,9 +320,7 @@ void MFSClient::freeInode(unsigned long index) {
     int disk = openAndSeek(inodesBitmapOffset);
     try {
         freeBitmapIndex(disk, inodesBitmapOffset, index);
-
-        //TODO set inode valid as true in inode table
-
+        //TODO set inode valid as false in inode table
     }
     catch (std::exception& e) {
         close(disk);
