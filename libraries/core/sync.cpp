@@ -49,11 +49,15 @@ private:
   std::vector<u_int8_t> buf_;
 };
 
-long CalcLockMType(int inode) { return (inode + 1) * 3 + 0; }
+long CalcInodeLockMType(int inode) { return (inode + 2) * 3 + 0; }
 
-long CalcStateMType(int inode) { return (inode + 1) * 3 + 1; }
+long CalcInodeStateMType(int inode) { return (inode + 2) * 3 + 1; }
 
-long CalcCondWriterMType(int inode) { return (inode + 1) * 3 + 2; }
+long CalcInodeCondWriterMType(int inode) { return (inode + 2) * 3 + 2; }
+
+long CalcAllocationBitmapLockMType() { return 1; }
+
+long CalcInodesBitmapLockMType() { return 2; }
 
 void SendMessage(int msqid, Message message) {
   int result = msgsnd(msqid, message.getMsgp(), message.getMsgsz(), IPC_NOWAIT);
@@ -94,8 +98,6 @@ void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
 void RecieveLock(int msqid, long mtype) { RecieveEmptyMessage(msqid, mtype); }
 
-
-
 State RecieveState(int msqid, long mtype) {
   const size_t buf_size = sizeof(long) + 2;
   char buf[buf_size];
@@ -119,16 +121,26 @@ void RecieveCondWriter(int msqid, long mtype) {
 
 void InitInodesSync(key_t msqid, int inodes) {
   for (int inode = 0; inode < inodes; ++inode) {
-    long lock_mtype = CalcLockMType(inode);
+    long lock_mtype = CalcInodeLockMType(inode);
     SendLock(msqid, lock_mtype);
 
-    long state_mtype = CalcStateMType(inode);
+    long state_mtype = CalcInodeStateMType(inode);
     State state = {0, 0};
     SendState(msqid, state_mtype, state);
 
-    long cond_writer_mtype = CalcCondWriterMType(inode);
+    long cond_writer_mtype = CalcInodeCondWriterMType(inode);
     SendCondWriter(msqid, cond_writer_mtype);
   }
+}
+
+void InitAllocationBitmapSync(key_t msqid) {
+  long allocation_bitmap_mtype = CalcAllocationBitmapLockMType();
+  SendLock(msqid, allocation_bitmap_mtype);
+}
+
+void InitInodesBitmapSync(key_t msqid) {
+  long inodes_bitmap_mtype = CalcInodesBitmapLockMType();
+  SendLock(msqid, inodes_bitmap_mtype);
 }
 
 int CreateMsq(const std::string path) {
@@ -153,7 +165,7 @@ int ReadMsq(const std::string path) {
 
   int msqid = msgget(msq_key, 0);
   if (msqid == -1) {
-    throw std::runtime_error("Couldn't create msqid");
+    throw std::runtime_error("Couldn't read msqid");
   }
 
   return msqid;
@@ -162,8 +174,12 @@ int ReadMsq(const std::string path) {
 extern void InitSync(const std::string path) {
   int msqid = CreateMsq(path);
 
+  InitAllocationBitmapSync(msqid);
+  InitInodesBitmapSync(msqid);
+
   int inodes = 13; // ToDo: need read number of inodes from fs
   InitInodesSync(msqid, inodes);
+
 }
 
 extern void RemoveSync(const std::string path) {
@@ -176,5 +192,25 @@ extern void RemoveSync(const std::string path) {
   }
 }
 
+void SyncClient::Init(const std::string path) { msqid_ = ReadMsq(path); }
+
 void SyncClient::ReadLock(u_int32_t inode_idx){};
 void SyncClient::ReadUnlock(u_int32_t inode_idx){};
+
+void SyncClient::AllocationBitmapLock() {
+  long mtype = CalcAllocationBitmapLockMType();
+  RecieveLock(msqid_, mtype);
+}
+void SyncClient::AllocationBitmapUnlock() {
+  long mtype = CalcAllocationBitmapLockMType();
+  SendLock(msqid_, mtype);
+}
+
+void SyncClient::InodesBitmapLock() {
+  long mtype = CalcInodesBitmapLockMType();
+  RecieveLock(msqid_, mtype);
+}
+void SyncClient::InodesBitmapUnlock() {
+  long mtype = CalcInodesBitmapLockMType();
+  SendLock(msqid_, mtype);
+}

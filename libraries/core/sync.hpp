@@ -12,7 +12,7 @@ extern void RemoveSync(const std::string path);
 
 class SyncClient {
 public:
-  void Init(std::string path);
+  void Init(const std::string path);
   void ReadLock(u_int32_t inode_idx);
   void ReadUnlock(u_int32_t inode_idx);
   void WriteLock(u_int32_t inode_idx);
@@ -21,8 +21,11 @@ public:
   void AllocationBitmapLock();
   void AllocationBitmapUnlock();
 
-  void InodeBitmapLock();
-  void InodeBitmapUnlock();
+  void InodesBitmapLock();
+  void InodesBitmapUnlock();
+
+private:
+  int msqid_ = -1;
 };
 
 #endif
