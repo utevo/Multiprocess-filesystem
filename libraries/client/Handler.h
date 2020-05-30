@@ -2,6 +2,8 @@
 #define MFS_HANDLER_H
 
 #include <string>
+#include <functional>
+#include <iostream>
 
 class Handler {
 public:
@@ -23,14 +25,15 @@ public:
         return name;
     }
     static FileStatus getStatus(const int& mode) {
-        if(mode == FileStatus::WRONLY)
+        if (mode == FileStatus::WRONLY)
             return FileStatus::WRONLY;
-        else if(mode == FileStatus::RDONLY)
+        else if (mode == FileStatus::RDONLY)
             return FileStatus::RDONLY;
-        else if(mode == FileStatus::RDWR)
+        else if (mode == FileStatus::RDWR)
             return FileStatus::RDWR;
         else
             throw std::invalid_argument("Wrong file open mode");
     }
+
 };
 #endif //MFS_HANDLER_H

@@ -32,8 +32,8 @@ private:
   u_int32_t getInode(std::string path);
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 
-  void addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name);
-  void removeInodeFromDirectory(const u_int32_t& directoryInode, const u_int32_t& inode);
+  void addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name);
+  void removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex);
 
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?
@@ -43,6 +43,12 @@ private:
   void freeInode(unsigned long index);
   void freeBlock(unsigned long index);
   void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const;
+
+
+  //functor can e.g. close file descriptor or unlock sync
+  void ReadFromDisk(int disk_fd, void *buf, size_t size, std::function<void()> functor);
+  void WriteToDisk(int disk_fd, const void *buf, size_t size, std::function<void()> functor);
+  void LseekOnDisk(int disk_fd, off_t offset, int whence, std::function<void()> functor);
 
 
   u_int32_t blockSize;
@@ -64,6 +70,8 @@ private:
   //key - file descriptor, value - open file structure
   std::map<u_int32_t, OpenFile> open_files;
   SyncClient sync_client;
+
+
 };
 
 #endif
