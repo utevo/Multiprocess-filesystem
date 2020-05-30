@@ -1,7 +1,3 @@
-//
-// Created by mateusz on 24.05.2020.
-//
-
 #ifndef MFS_HANDLER_H
 #define MFS_HANDLER_H
 

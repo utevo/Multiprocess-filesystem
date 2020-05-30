@@ -65,9 +65,9 @@ int MFSClient::mfs_creat(char *name, int mode) {
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
     int disk = openAndSeek();
 
-    std::string path = Handler::getDirectory(name);
     std::string filename = Handler::getFileName(name);
-    u_int32_t directoryInodeIndex = getInode(std::string(name));
+    std::string path = Handler::getDirectory(name);
+    u_int32_t directoryInodeIndex = getInode(path);
 
     addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
 
@@ -77,6 +77,10 @@ int MFSClient::mfs_creat(char *name, int mode) {
     inode.size = 0;
 
     sync_client.WriteLock(inodeIndex);
+    if(lseek(disk, inodesOffset + inodeIndex * inodeSize, SEEK_SET) < 0) {
+        close(disk);
+        return -1;
+    }
     int result = write(disk, &inode, sizeof(Inode));
     close(disk);
     if(result < 0)
@@ -167,8 +171,8 @@ u_int32_t MFSClient::getInode(std::string path) {
     int disk = openAndSeek(inodesOffset);
     std::vector<std::string> directories = split(path, '/');
     u_int32_t currentInode = 0;
-    for(const auto& directory : directories) {
-        currentInode = getInodeFromDirectoryByName(disk, directory, currentInode);
+    for(const auto& name : directories) {
+        currentInode = getInodeFromDirectoryByName(disk, name, currentInode);
     }
     return currentInode;
 }
