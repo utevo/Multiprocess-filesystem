@@ -62,39 +62,40 @@ int MFSClient::mfs_open(char *name, int mode) {
 }
 
 int MFSClient::mfs_creat(char *name, int mode) {
-    u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
-    int disk = openAndSeek();
+    int disk;
+    try {
+        u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
+        disk = openAndSeek();
+        std::string filename = Handler::getFileName(name);
+        std::string path = Handler::getDirectory(name);
+        u_int32_t directoryInodeIndex = getInode(path);
 
-    std::string filename = Handler::getFileName(name);
-    std::string path = Handler::getDirectory(name);
-    u_int32_t directoryInodeIndex = getInode(path);
+        addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
 
-    addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
+        Inode inode;
+        inode.valid = 1;
+        inode.type = NORMAL_FILE;
+        inode.size = 0;
 
-    Inode inode;
-    inode.valid = 1;
-    inode.type = NORMAL_FILE;
-    inode.size = 0;
+        sync_client.WriteLock(inodeIndex);
+        LseekOnDisk(disk, inodesOffset + inodeIndex * inodeSize, SEEK_SET,
+                    [&]() { sync_client.WriteUnlock(inodeIndex); });
+        WriteToDisk(disk, &inode, sizeof(Inode),
+                    [&]() { sync_client.WriteUnlock(inodeIndex); });
 
-    sync_client.WriteLock(inodeIndex);
-    if(lseek(disk, inodesOffset + inodeIndex * inodeSize, SEEK_SET) < 0) {
         close(disk);
         sync_client.WriteUnlock(inodeIndex);
+
+        OpenFile openFile{ WRONLY, 0, inodeIndex};
+        int fd = getLowestDescriptor();
+        open_files.insert({fd, openFile});
+
+        return fd;
+    }
+    catch (std::exception&) {
+        close(disk);
         return -1;
     }
-    int result = write(disk, &inode, sizeof(Inode));
-    close(disk);
-    if(result < 0) {
-        sync_client.WriteUnlock(inodeIndex);
-        return -1;
-    }
-    sync_client.WriteUnlock(inodeIndex);
-
-    OpenFile openFile{ WRONLY, 0, inodeIndex};
-    int fd = getLowestDescriptor();
-    open_files.insert({fd, openFile});
-
-    return fd;
 }
 
 int MFSClient::mfs_read(int fd, char *buf, int len) {
@@ -174,9 +175,15 @@ u_int32_t MFSClient::getInode(std::string path) {
     int disk = openAndSeek(inodesOffset);
     std::vector<std::string> directories = split(path, '/');
     u_int32_t currentInode = 0;
-    for(const auto& name : directories) {
-        currentInode = getInodeFromDirectoryByName(disk, name, currentInode);
+    try {
+        for(const auto& name : directories)
+            currentInode = getInodeFromDirectoryByName(disk, name, currentInode);
     }
+    catch (std::exception& e) {
+        close(disk);
+        throw e;
+    }
+    close(disk);
     return currentInode;
 }
 u_int32_t MFSClient::getInodeFromDirectoryByName(const int& disk_fd,
