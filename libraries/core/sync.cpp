@@ -49,11 +49,11 @@ private:
   std::vector<u_int8_t> buf_;
 };
 
-long CalcInodeLockMType(int inode) { return (inode + 2) * 3 + 0; }
+long CalcInodeLockMType(int inode_idx) { return (inode_idx + 2) * 3 + 0; }
 
-long CalcInodeStateMType(int inode) { return (inode + 2) * 3 + 1; }
+long CalcInodeStateMType(int inode_idx) { return (inode_idx + 2) * 3 + 1; }
 
-long CalcInodeCondWriterMType(int inode) { return (inode + 2) * 3 + 2; }
+long CalcInodeCondWriterMType(int inode_idx) { return (inode_idx + 2) * 3 + 2; }
 
 long CalcAllocationBitmapLockMType() { return 1; }
 
@@ -84,19 +84,34 @@ void RecieveEmptyMessage(int msqid, long mtype) {
 
 void SendLock(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
+void SendInodeLock(int msqid, int inode_idx) {
+  long mtype = CalcInodeLockMType(inode_idx);
+  SendLock(msqid, mtype);
+}
+
 struct State {
-  bool reader;
-  u_int8_t writers;
+  u_int8_t readers;
+  bool writer;
 };
 
 void SendState(int msqid, long mtype, State state) {
-  Message message = Message(mtype, {(u_int8_t)state.reader, state.writers});
+  Message message = Message(mtype, {state.readers, (u_int8_t)state.writer});
   SendMessage(msqid, message);
+}
+
+void SendInodeState(int msqid, u_int32_t inode_idx, State state) {
+  long mtype = CalcInodeStateMType(inode_idx);
+  SendState(msqid, mtype, state);
 }
 
 void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
 void RecieveLock(int msqid, long mtype) { RecieveEmptyMessage(msqid, mtype); }
+
+void RecieveInodeLock(int msqid, int inode_idx) {
+  long mtype = CalcInodeLockMType(inode_idx);
+  RecieveLock(msqid, mtype);
+}
 
 State RecieveState(int msqid, long mtype) {
   const size_t buf_size = sizeof(long) + 2;
@@ -106,13 +121,18 @@ State RecieveState(int msqid, long mtype) {
   if (result == -1) {
     std::runtime_error("Couldn't recieve message");
   }
-  int reader_idx = sizeof(long);
-  bool reader = buf[reader_idx];
-  int writers_idx = sizeof(long) + sizeof(bool);
-  char writers = buf[writers_idx];
+  int readers_idx = sizeof(long);
+  u_int8_t readers = buf[readers_idx];
+  int writer_idx = sizeof(long) + sizeof(bool);
+  bool writer = buf[writer_idx];
 
-  State state = {reader, writers};
+  State state = {readers, writer};
   return state;
+}
+
+State RecieveInodeState(int msqid, u_int32_t inode_idx) {
+  long mtype = CalcInodeStateMType(inode_idx);
+  return RecieveState(msqid, mtype);
 }
 
 void RecieveCondWriter(int msqid, long mtype) {
@@ -120,15 +140,15 @@ void RecieveCondWriter(int msqid, long mtype) {
 }
 
 void InitInodesSync(key_t msqid, int inodes) {
-  for (int inode = 0; inode < inodes; ++inode) {
-    long lock_mtype = CalcInodeLockMType(inode);
+  for (int inode_idx = 0; inode_idx < inodes; ++inode_idx) {
+    long lock_mtype = CalcInodeLockMType(inode_idx);
     SendLock(msqid, lock_mtype);
 
-    long state_mtype = CalcInodeStateMType(inode);
+    long state_mtype = CalcInodeStateMType(inode_idx);
     State state = {0, 0};
     SendState(msqid, state_mtype, state);
 
-    long cond_writer_mtype = CalcInodeCondWriterMType(inode);
+    long cond_writer_mtype = CalcInodeCondWriterMType(inode_idx);
     SendCondWriter(msqid, cond_writer_mtype);
   }
 }
@@ -179,7 +199,6 @@ extern void InitSync(const std::string path) {
 
   int inodes = 13; // ToDo: need read number of inodes from fs
   InitInodesSync(msqid, inodes);
-
 }
 
 extern void RemoveSync(const std::string path) {
@@ -194,8 +213,43 @@ extern void RemoveSync(const std::string path) {
 
 void SyncClient::Init(const std::string path) { msqid_ = ReadMsq(path); }
 
-void SyncClient::ReadLock(u_int32_t inode_idx){};
-void SyncClient::ReadUnlock(u_int32_t inode_idx){};
+void AddReaderToInodeState(int msqid, u_int32_t inode_idx) {
+  State state_before = RecieveInodeState(msqid, inode_idx);
+
+  if (state_before.readers == 255) {
+    SendInodeState(msqid, inode_idx, state_before);
+    throw std::runtime_error("Too many readers in inode: " +
+                             std::to_string(inode_idx));
+  }
+
+  State state_after = {state_before.readers + 1, state_before.writer};
+  SendInodeState(msqid, inode_idx, state_after);
+}
+void RemoveReaderFromInodeState(int msqid, u_int32_t inode_idx) {
+  State state_before = RecieveInodeState(msqid, inode_idx);
+
+  if (state_before.readers == 0) {
+    SendInodeState(msqid, inode_idx, state_before);
+    throw std::runtime_error("Any readers in inode: " +
+                             std::to_string(inode_idx));
+  }
+
+  State state_after = {state_before.readers - 1, state_before.writer};
+  SendInodeState(msqid, inode_idx, state_after);
+}
+
+void SyncClient::ReadLock(u_int32_t inode_idx) {
+  RecieveInodeLock(msqid_, inode_idx);
+
+  AddReaderToInodeState(msqid_, inode_idx); // ToDo: Handle throw
+
+  SendInodeLock(msqid_, inode_idx);
+};
+void SyncClient::ReadUnlock(u_int32_t inode_idx) {
+  RemoveReaderFromInodeState(msqid_, inode_idx);
+
+  // ToDo: Write more code
+}
 
 void SyncClient::AllocationBitmapLock() {
   long mtype = CalcAllocationBitmapLockMType();
