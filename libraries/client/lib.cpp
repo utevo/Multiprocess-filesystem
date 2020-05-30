@@ -67,8 +67,8 @@ int MFSClient::mfs_creat(char *name, int mode) {
         u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
         disk = openAndSeek();
         std::string filename = Handler::getFileName(name);
-        std::string path = Handler::getDirectory(name);
-        u_int32_t directoryInodeIndex = getInode(path);
+        std::string directoryPath = Handler::getDirectory(name);
+        u_int32_t directoryInodeIndex = getInode(directoryPath);
 
         addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
 
