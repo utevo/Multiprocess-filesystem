@@ -35,6 +35,12 @@ private:
   void addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name);
   void removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex);
 
+  void directoryFill(int disk_fd, const u_int32_t& directoryInodeIndex,
+          const u_int32_t& inodeToChange, const u_int32_t &newInode, const std::string& name);
+  void writeInodeAndName(int disk_fd, const u_int32_t& directoryInodeIndex,
+          const u_int32_t& newInodeIndex, const std::string& name);
+
+
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?
   u_int32_t getAndTakeUpFirstFreeBlock(); //returns block number
@@ -45,7 +51,7 @@ private:
   void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const;
 
 
-  //functor can e.g. close file descriptor or unlock sync
+  //functor when operation fails, e.g. unlock sync
   void ReadFromDisk(int disk_fd, void *buf, size_t size, std::function<void()> functor);
   void WriteToDisk(int disk_fd, const void *buf, size_t size, std::function<void()> functor);
   void LseekOnDisk(int disk_fd, off_t offset, int whence, std::function<void()> functor);

@@ -221,44 +221,78 @@ u_int32_t MFSClient::getInodeFromDirectoryByName(const int& disk_fd,
     sync_client.ReadUnlock(directoryInode);
     throw std::invalid_argument("Directory inode is incorrect");
 }
+
 void MFSClient::addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name) {
     int disk_fd = openAndSeek(inodesOffset + directoryInodeIndex * inodeSize);
-    sync_client.WriteLock(directoryInodeIndex);
+    try {
+        directoryFill(disk_fd, directoryInodeIndex, 0, inodeIndex, name);
+    }
+    catch (std::exception& e) {
+        close(disk_fd);
+        throw e;
+    }
+}
 
+void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex) {
+    int disk_fd = openAndSeek(inodesOffset + directoryInodeIndex * inodeSize);
+    try {
+        directoryFill(disk_fd, directoryInodeIndex, inodeIndex, 0, "\0");
+    }
+    catch (std::exception& e) {
+        close(disk_fd);
+        throw e;
+    }
+}
+
+void MFSClient::directoryFill(int disk_fd,
+        const u_int32_t &directoryInodeIndex,
+        const u_int32_t &inodeToChange,
+        const u_int32_t &newInode,
+        const std::string& name) {
+    sync_client.WriteLock(directoryInodeIndex);
     Inode directoryInode;
     ReadFromDisk(disk_fd, &directoryInode,  sizeof(Inode),
-            [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+                 [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
     for (const auto& block : directoryInode.direct_idxs) {
         u_int32_t index;
         LseekOnDisk(disk_fd, blocksOffset + block * blockSize, SEEK_SET,
-                [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+                    [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
         //foreach rows in data block, row is inode and name
-
         int row = 0;
         do {
             ReadFromDisk(disk_fd, &index, sizeof(u_int32_t),
-                 [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+                         [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
 
-            if(index == 0){
+            if(index == inodeToChange){
                 LseekOnDisk(disk_fd, row * 32, SEEK_SET,
                             [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
-                WriteToDisk(disk_fd, &index, sizeof(u_int32_t),
-                            [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
-                WriteToDisk(disk_fd, name.c_str(), sizeof(name.c_str()),
-                            [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+                //TODO operation
+                writeInodeAndName(disk_fd, directoryInodeIndex, newInode, name);
+                sync_client.WriteUnlock(directoryInodeIndex);
                 return;
             }
             row++;
         } while (index != 0);
     }
-    throw std::domain_error("Cannot add more inodes to directory");
+    sync_client.WriteUnlock(directoryInodeIndex);
+    throw std::domain_error("Cannot change directory");
 }
-
-void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInode, const u_int32_t& inode) {
-
+void MFSClient::writeInodeAndName(
+        int disk_fd, const u_int32_t& directoryInodeIndex,
+        const u_int32_t& newInodeIndex, const std::string& name) {
+    if(newInodeIndex != 0){
+        WriteToDisk(disk_fd, &newInodeIndex, sizeof(u_int32_t),
+                    [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+        WriteToDisk(disk_fd, name.c_str(), sizeof(name.c_str()),
+                    [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+    } else {
+        char buff[32];
+        for(int i = 0; i < 32; ++i)
+            buff[i] = '\0';
+        WriteToDisk(disk_fd, &buff, sizeof(32),
+                    [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+    }
 }
-
-
 
 u_int32_t MFSClient::getAndTakeUpFirstFreeBlock() {
     sync_client.AllocationBitmapLock();
