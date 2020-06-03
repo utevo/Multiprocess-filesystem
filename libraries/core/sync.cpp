@@ -106,6 +106,11 @@ void SendInodeState(int msqid, u_int32_t inode_idx, State state) {
 
 void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
+void SendCondWriter(int msqid, u_int32_t inode_idx) {
+  long mtype = CalcInodeStateMType(inode_idx);
+  SendCondWriter(msqid, mtype);
+}
+
 void RecieveLock(int msqid, long mtype) { RecieveEmptyMessage(msqid, mtype); }
 
 void RecieveInodeLock(int msqid, int inode_idx) {
@@ -238,6 +243,19 @@ void RemoveReaderFromInodeState(int msqid, u_int32_t inode_idx) {
   SendInodeState(msqid, inode_idx, state_after);
 }
 
+bool IsWriterWait(int msqid, u_int32_t inode_idx) {
+  State state = RecieveInodeState(msqid, inode_idx);
+
+  bool isWait = (state.writer == true);
+  SendInodeState(msqid, inode_idx, state);
+
+  return isWait;
+}
+
+void WakeUpWriter(int msqid, u_int32_t inode_idx) {
+  SendCondWriter(msqid, inode_idx);
+}
+
 void SyncClient::ReadLock(u_int32_t inode_idx) {
   RecieveInodeLock(msqid_, inode_idx);
 
@@ -248,7 +266,9 @@ void SyncClient::ReadLock(u_int32_t inode_idx) {
 void SyncClient::ReadUnlock(u_int32_t inode_idx) {
   RemoveReaderFromInodeState(msqid_, inode_idx);
 
-  // ToDo: Write more code
+  bool isWriterWait = IsWriterWait(msqid_, inode_idx);
+  if (isWriterWait)
+    WakeUpWriter(msqid_, inode_idx);
 }
 
 void SyncClient::AllocationBitmapLock() {
