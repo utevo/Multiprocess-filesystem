@@ -149,15 +149,24 @@ void RecieveInodeCondWriter(int msqid, u_int32_t inode_idx) {
   RecieveEmptyMessage(msqid, mtype);
 }
 
+void InitInodeLock(int msqid, u_int32_t inode_idx) {
+  SendInodeLock(msqid, inode_idx);
+}
+
+void InitInodeState(int msqid, u_int32_t inode_idx) {
+  State state = {0, 0};
+  SendInodeState(msqid, inode_idx, state);
+}
+
+void InitInodeCondWriter(int msqid, u_int32_t inode_idx) {
+  return;
+}
+
 void InitInodesSync(key_t msqid, int inodes) {
   for (int inode_idx = 0; inode_idx < inodes; ++inode_idx) {
-    SendInodeLock(msqid, inode_idx);
-
-    State state = {0, 0};
-    SendInodeState(msqid, inode_idx, state);
-
-    // long cond_writer_mtype = CalcInodeCondWriterMType(inode_idx);
-    // SendCondWriter(msqid, cond_writer_mtype);
+    InitInodeLock(msqid, inode_idx);
+    InitInodeState(msqid, inode_idx);
+    InitInodeCondWriter(msqid, inode_idx);
   }
 }
 
@@ -311,7 +320,8 @@ void WaitForSignal(int msqid, u_int32_t inode_idx) {
 void SyncClient::WriteLock(u_int32_t inode_idx) {
   RecieveInodeLock(msqid_, inode_idx);
 
-  bool writer_need_to_wait = AddWriterToInodeStateAndCheckIfNeedWait(msqid_, inode_idx);
+  bool writer_need_to_wait =
+      AddWriterToInodeStateAndCheckIfNeedWait(msqid_, inode_idx);
   if (writer_need_to_wait)
     WaitForSignal(msqid_, inode_idx);
 }
