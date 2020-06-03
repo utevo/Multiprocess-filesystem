@@ -116,39 +116,60 @@ int MFSClient::mfs_unlink(char *name) {
 }
 
 int MFSClient::mfs_mkdir(char *name) {
+    //get both names 
+    std::vector<std::string> directories = split(name, '/');
+    std::string newName, parentName;
+    if(directories.size() == 0) throw std::invalid_argument("Name cannot be empty");
+    if(directories.size() == 1)
+    {
+        newName = directories[0];
+        parentName = '/';
+    }
+    else
+    {
+        newName = directories[directories.size()-1];
+        parentName = directories[directories.size()];
+    }
+
+    //get parent inode:
+    u_int32_t parent = getParentInode(name);
+    //take up and get new dir inode:
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
     sync_client.WriteLock(inodeIndex);
-
+    //set new inode object:
     int disk = openAndSeek(inodes + inodeIndex * inodeSize);
     Inode inode;
     inode.valid = 1;
     inode.type = DIRECTORY;
     inode.size = 0; //TODO determine size
 
-    int result = write(disk, &inode, sizeof(Inode));
-    close(disk);
-    if(result < 0)
-        return -1;
-
-    //TODO add reference in directory:
-    //addKidInodeToParent(inodeIndexKid, inodeIndexParent);
-
+    //get first free block:
     u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+    inode.direct_idxs[0] = blockIndex;
 
     //write ., .. references in directory memory block:
     disk = openAndSeek(blocks + blockIndex * blockSize);
-    u_int32_t buf[16] = {0,0,0,0,0,0,0,0};
+    u_int32_t buf[16] = {0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0};
     buf[0] = inodeIndex; //reference to .
     buf[1] = '.';
     buf[8] = inodeIndex; //TODO add reference to .., getInode(string path) needed
     buf[9] = '.'+256*'.';
     write(disk, &buf, sizeof(buf));
 
+    //write the inode:
+    int result = write(disk, &inode, sizeof(Inode));
+    close(disk);
+    if(result < 0)
+        return -1;
     sync_client.WriteUnlock(inodeIndex);
+
     return 0;
 }
 
 int MFSClient::mfs_rmdir(char *name) {
+    //free all blocks
+    //free inode
+    //remove from parent
     return 0;
 }
 
@@ -178,6 +199,16 @@ u_int32_t MFSClient::getInode(std::string path) {
     u_int32_t currentInode = 0;
     for(const auto& directory : directories) {
         currentInode = getInodeFromDirectoryByName(disk, directory, currentInode);
+    }
+    return currentInode;
+}
+
+u_int32_t MFSClient::getParentInode(std::string path) {
+    int disk = openAndSeek(inodesOffset);
+    std::vector<std::string> directories = split(path, '/');
+    u_int32_t currentInode = 0;
+    for(unsigned int iter = 0; iter < directories.size() - 1; ++iter) {
+        currentInode = getInodeFromDirectoryByName(disk, directories[iter], currentInode);
     }
     return currentInode;
 }
@@ -247,8 +278,9 @@ u_int32_t MFSClient::getAndTakeUpFirstFreeBlock() {
     sync_client.AllocationBitmapUnlock();
     return blockNumber;
 }
-void MFSClient::addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name) {
 
+void MFSClient::addInodeToDirectory(const u_int32_t& directoryInode, const u_int32_t& inode, const std::string& name) {
+//cos tu bedzie?
 }
 
 u_int32_t MFSClient::getAndTakeUpFirstFreeInode() {
@@ -379,11 +411,3 @@ void MFSClient::freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long ind
     if(write(disk_fd, &bitmap, sizeof(u_int8_t)) < 0)
         throw std::ios_base::failure("Cannot write bitmap block");
 }
-
-
-
-
-
-
-
-
