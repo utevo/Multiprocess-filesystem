@@ -106,8 +106,8 @@ void SendInodeState(int msqid, u_int32_t inode_idx, State state) {
 
 void SendCondWriter(int msqid, long mtype) { SendEmptyMessage(msqid, mtype); }
 
-void SendCondWriter(int msqid, u_int32_t inode_idx) {
-  long mtype = CalcInodeStateMType(inode_idx);
+void SendInodeCondWriter(int msqid, u_int32_t inode_idx) {
+  long mtype = CalcInodeCondWriterMType(inode_idx);
   SendCondWriter(msqid, mtype);
 }
 
@@ -144,17 +144,20 @@ void RecieveCondWriter(int msqid, long mtype) {
   RecieveEmptyMessage(msqid, mtype);
 }
 
+void RecieveInodeCondWriter(int msqid, u_int32_t inode_idx) {
+  long mtype = CalcInodeStateMType(inode_idx);
+  RecieveEmptyMessage(msqid, mtype);
+}
+
 void InitInodesSync(key_t msqid, int inodes) {
   for (int inode_idx = 0; inode_idx < inodes; ++inode_idx) {
-    long lock_mtype = CalcInodeLockMType(inode_idx);
-    SendLock(msqid, lock_mtype);
+    SendInodeLock(msqid, inode_idx);
 
-    long state_mtype = CalcInodeStateMType(inode_idx);
     State state = {0, 0};
-    SendState(msqid, state_mtype, state);
+    SendInodeState(msqid, inode_idx, state);
 
-    long cond_writer_mtype = CalcInodeCondWriterMType(inode_idx);
-    SendCondWriter(msqid, cond_writer_mtype);
+    // long cond_writer_mtype = CalcInodeCondWriterMType(inode_idx);
+    // SendCondWriter(msqid, cond_writer_mtype);
   }
 }
 
@@ -243,17 +246,47 @@ void RemoveReaderFromInodeState(int msqid, u_int32_t inode_idx) {
   SendInodeState(msqid, inode_idx, state_after);
 }
 
+bool AddWriterToInodeStateAndCheckIfNeedWait(int msqid, u_int32_t inode_idx) {
+  State state_before = RecieveInodeState(msqid, inode_idx);
+
+  if (state_before.writer == true) {
+    SendInodeState(msqid, inode_idx, state_before);
+    throw std::runtime_error("Writer is in inode: " +
+                             std::to_string(inode_idx));
+  }
+
+  bool writer_need_to_wait = (state_before.readers != 0);
+  State state_after = {state_before.readers, true};
+
+  SendInodeState(msqid, inode_idx, state_after);
+  return writer_need_to_wait;
+}
+
+void RemoveWriterFromInodeState(int msqid, u_int32_t inode_idx) {
+  State state_before = RecieveInodeState(msqid, inode_idx);
+
+  if (state_before.writer == false) {
+    SendInodeState(msqid, inode_idx, state_before);
+    throw std::runtime_error("No writer in inode: " +
+                             std::to_string(inode_idx));
+  }
+
+  State state_after = {state_before.readers, false};
+
+  SendInodeState(msqid, inode_idx, state_after);
+}
+
 bool IsWriterWait(int msqid, u_int32_t inode_idx) {
   State state = RecieveInodeState(msqid, inode_idx);
 
-  bool isWait = (state.writer == true);
+  bool is_wait = (state.writer == true);
   SendInodeState(msqid, inode_idx, state);
 
-  return isWait;
+  return is_wait;
 }
 
-void WakeUpWriter(int msqid, u_int32_t inode_idx) {
-  SendCondWriter(msqid, inode_idx);
+void SignalWriter(int msqid, u_int32_t inode_idx) {
+  SendInodeCondWriter(msqid, inode_idx);
 }
 
 void SyncClient::ReadLock(u_int32_t inode_idx) {
@@ -266,9 +299,26 @@ void SyncClient::ReadLock(u_int32_t inode_idx) {
 void SyncClient::ReadUnlock(u_int32_t inode_idx) {
   RemoveReaderFromInodeState(msqid_, inode_idx);
 
-  bool isWriterWait = IsWriterWait(msqid_, inode_idx);
-  if (isWriterWait)
-    WakeUpWriter(msqid_, inode_idx);
+  bool is_writer_wait = IsWriterWait(msqid_, inode_idx);
+  if (is_writer_wait)
+    SignalWriter(msqid_, inode_idx);
+}
+
+void WaitForSignal(int msqid, u_int32_t inode_idx) {
+  RecieveInodeCondWriter(msqid, inode_idx);
+}
+
+void SyncClient::WriteLock(u_int32_t inode_idx) {
+  RecieveInodeLock(msqid_, inode_idx);
+
+  bool writer_need_to_wait = AddWriterToInodeStateAndCheckIfNeedWait(msqid_, inode_idx);
+  if (writer_need_to_wait)
+    WaitForSignal(msqid_, inode_idx);
+}
+void SyncClient::WriteUnlock(u_int32_t inode_idx) {
+  RemoveWriterFromInodeState(msqid_, inode_idx);
+
+  SendInodeLock(msqid_, inode_idx);
 }
 
 void SyncClient::AllocationBitmapLock() {
