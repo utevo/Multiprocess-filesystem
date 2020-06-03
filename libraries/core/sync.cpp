@@ -145,7 +145,7 @@ void RecieveCondWriter(int msqid, long mtype) {
 }
 
 void RecieveInodeCondWriter(int msqid, u_int32_t inode_idx) {
-  long mtype = CalcInodeStateMType(inode_idx);
+  long mtype = CalcInodeCondWriterMType(inode_idx);
   RecieveEmptyMessage(msqid, mtype);
 }
 
@@ -158,9 +158,7 @@ void InitInodeState(int msqid, u_int32_t inode_idx) {
   SendInodeState(msqid, inode_idx, state);
 }
 
-void InitInodeCondWriter(int msqid, u_int32_t inode_idx) {
-  return;
-}
+void InitInodeCondWriter(int msqid, u_int32_t inode_idx) { return; }
 
 void InitInodesSync(key_t msqid, int inodes) {
   for (int inode_idx = 0; inode_idx < inodes; ++inode_idx) {
@@ -294,6 +292,22 @@ bool IsWriterWait(int msqid, u_int32_t inode_idx) {
   return is_wait;
 }
 
+bool IsRemaindOneReader(int msqid, u_int32_t inode_idx) {
+  State state = RecieveInodeState(msqid, inode_idx);
+
+  bool is_remaind_one_reader = (state.readers == 1);
+  SendInodeState(msqid, inode_idx, state);
+
+  return is_remaind_one_reader;
+}
+
+bool MustSignalWriter(int msqid, u_int32_t inode_idx) {
+  bool is_wait = IsWriterWait(msqid, inode_idx);
+  bool is_remaind_one_reader = IsRemaindOneReader(msqid, inode_idx);
+
+  return is_wait && is_remaind_one_reader;
+}
+
 void SignalWriter(int msqid, u_int32_t inode_idx) {
   SendInodeCondWriter(msqid, inode_idx);
 }
@@ -308,8 +322,8 @@ void SyncClient::ReadLock(u_int32_t inode_idx) {
 void SyncClient::ReadUnlock(u_int32_t inode_idx) {
   RemoveReaderFromInodeState(msqid_, inode_idx);
 
-  bool is_writer_wait = IsWriterWait(msqid_, inode_idx);
-  if (is_writer_wait)
+  bool must_signal_writer = MustSignalWriter(msqid_, inode_idx);
+  if (must_signal_writer)
     SignalWriter(msqid_, inode_idx);
 }
 
