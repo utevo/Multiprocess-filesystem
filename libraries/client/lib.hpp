@@ -51,6 +51,9 @@ private:
   void freeBlock(unsigned long index);
   void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const;
 
+  void clearBlock(u_int32_t index);
+  void clearInode(u_int32_t index);
+
 
   //functor when operation fails, e.g. unlock sync
   void ReadFromDisk(int disk_fd, void *buf, size_t size, std::function<void()> functor);

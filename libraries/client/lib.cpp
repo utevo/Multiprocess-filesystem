@@ -434,7 +434,7 @@ void MFSClient::freeInode(unsigned long index) {
     int disk = openAndSeek(inodesBitmapOffset);
     try {
         freeBitmapIndex(disk, inodesBitmapOffset, index);
-        //TODO set inode valid as false in inode table
+        clearInode(index);
     }
     catch (std::exception& e) {
         close(disk);
@@ -445,6 +445,21 @@ void MFSClient::freeInode(unsigned long index) {
     sync_client.InodeBitmapUnlock();
 }
 
+void MFSClient::clearInode(u_int32_t index) {
+    int disk = openAndSeek(inodes + inodeSize * index);
+    sync_client.WriteLock(index);
+    Inode inode;
+    ReadFromDisk(disk, &inode, sizeof(Inode), [&]() { sync_client.WriteUnlock(index); close(disk); });
+    inode.valid = 0;
+    inode.size = 0;
+    //TODO clear blocks
+    LseekOnDisk(disk, inodes + inodeSize * index, SEEK_SET,
+            [&]() { sync_client.WriteUnlock(index); close(disk); });
+    WriteToDisk(disk, &inode, sizeof(Inode), [&]() { sync_client.WriteUnlock(index); close(disk); });
+    sync_client.WriteUnlock(index);
+    close(disk);
+}
+
 void MFSClient::freeBlock(unsigned long index)  {
     if(index > blocks || index < 0)
         throw std::invalid_argument("Invalid block index");
@@ -452,7 +467,7 @@ void MFSClient::freeBlock(unsigned long index)  {
     int disk = openAndSeek(allocationBitmapOffset);
     try {
         freeBitmapIndex(disk, allocationBitmapOffset, index);
-        //TODO clear block
+        clearBlock(index);
     }
     catch (std::exception& e) {
         close(disk);
@@ -461,6 +476,14 @@ void MFSClient::freeBlock(unsigned long index)  {
     }
     close(disk);
     sync_client.AllocationBitmapUnlock();
+}
+void MFSClient::clearBlock(u_int32_t index) {
+    int disk = openAndSeek(blocks + blockSize * index);
+    char buff[blockSize];
+    for(auto& byte : buff)
+        byte = '\0';
+    WriteToDisk(disk, buff, sizeof(blockSize), [&]() { close(disk); });
+    close(disk);
 }
 
 void MFSClient::freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const {
@@ -505,6 +528,8 @@ void MFSClient::LseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
+
 
 
 
