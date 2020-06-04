@@ -30,6 +30,7 @@ private:
   int getLowestDescriptor() const;
 
   u_int32_t getInode(std::string path);
+  u_int32_t getParentInode(std::string path);
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 
   void addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name);
