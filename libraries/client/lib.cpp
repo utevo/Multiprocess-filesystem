@@ -118,7 +118,16 @@ int MFSClient::mfs_lseek(int fd, int whence, int offset) {
 }
 
 int MFSClient::mfs_unlink(char *name) {
-    return 0;
+    try {
+        u_int32_t inodeToDelete = getInode(name);
+        u_int32_t parentInode = getInode(Handler::getDirectory(name));
+
+        removeInodeFromDirectory(parentInode, inodeToDelete);
+        freeInode(inodeToDelete);
+
+    } catch (std::exception&) {
+        return -1;
+    }
 }
 
 int MFSClient::mfs_mkdir(char *name) {
