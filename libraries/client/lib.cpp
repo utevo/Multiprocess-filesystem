@@ -233,10 +233,10 @@ void MFSClient::addInodeToDirectory(const u_int32_t& directoryInodeIndex, const 
     }
 }
 
-void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex) {
+void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeToDelete) {
     int disk_fd = openAndSeek(inodesOffset + directoryInodeIndex * inodeSize);
     try {
-        directoryFill(disk_fd, directoryInodeIndex, inodeIndex, 0, "\0");
+        directoryFill(disk_fd, directoryInodeIndex, inodeToDelete, 0, "\0");
     }
     catch (std::exception& e) {
         close(disk_fd);
@@ -245,10 +245,10 @@ void MFSClient::removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, c
 }
 
 void MFSClient::directoryFill(int disk_fd,
-        const u_int32_t &directoryInodeIndex,
-        const u_int32_t &inodeToChange,
-        const u_int32_t &newInode,
-        const std::string& name) {
+                                const u_int32_t &directoryInodeIndex,
+                                const u_int32_t &inodeToChange,
+                                const u_int32_t &newInode,
+                                const std::string& name) {
     sync_client.WriteLock(directoryInodeIndex);
     Inode directoryInode;
     ReadFromDisk(disk_fd, &directoryInode,  sizeof(Inode),
