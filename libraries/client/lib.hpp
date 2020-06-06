@@ -25,7 +25,7 @@ public:
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
 
-private:
+
   int openAndSeek(const int& offset = 0) const;
   int getLowestDescriptor() const;
 

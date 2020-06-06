@@ -60,7 +60,7 @@ void MFSClient::makeRoot()
     inode.size = blockSize;
     inode.direct_idxs[0] = rootBlock;
 
-    int disk = openAndSeek(inodes + rootInode * inodeSize);
+    int disk = openAndSeek(inodesOffset + rootInode * inodeSize);
     sync_client.WriteLock(rootInode);
     //LseekOnDisk(disk, inodesOffset + rootInode * inodeSize, SEEK_SET,
     //            [&]() { sync_client.WriteUnlock(rootInode); });
@@ -69,7 +69,7 @@ void MFSClient::makeRoot()
     //nie moge po prostu tak:
     int result = write(disk, &inode, sizeof(Inode));
     sync_client.WriteUnlock(rootInode);
-
+    clearBlock(1);
     close(disk);
 
     addInodeToDirectory(rootInode, rootInode, ".");
@@ -289,6 +289,7 @@ void MFSClient::addInodeToDirectory(const u_int32_t &directoryInodeIndex, const 
     int disk_fd = openAndSeek(inodesOffset + directoryInodeIndex * inodeSize);
     try {
         directoryFill(disk_fd, directoryInodeIndex, 0, inodeIndex, name);
+        close(disk_fd);
     }
     catch (std::exception &e) {
         close(disk_fd);
@@ -300,6 +301,7 @@ void MFSClient::removeInodeFromDirectory(const u_int32_t &directoryInodeIndex, c
     int disk_fd = openAndSeek(inodesOffset + directoryInodeIndex * inodeSize);
     try {
         directoryFill(disk_fd, directoryInodeIndex, inodeToDelete, 0, "\0");
+        close(disk_fd);
     }
     catch (std::exception &e) {
         close(disk_fd);
@@ -317,25 +319,26 @@ void MFSClient::directoryFill(int disk_fd,
     ReadFromDisk(disk_fd, &directoryInode, sizeof(Inode),
                  [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
     for (const auto &block : directoryInode.direct_idxs) {
-        u_int32_t index;
         LseekOnDisk(disk_fd, blocksOffset + block * blockSize, SEEK_SET,
                     [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
         //foreach rows in data block, row is inode and name
         int row = 0;
-        do {
+        while (row < 128) {
+            u_int32_t index = 0;
             ReadFromDisk(disk_fd, &index, sizeof(u_int32_t),
                          [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
-
             if (index == inodeToChange) {
-                LseekOnDisk(disk_fd, row * 32, SEEK_SET,
+                LseekOnDisk(disk_fd, blocksOffset + block * blockSize + row * 32, SEEK_SET,
                             [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
                 //TODO operation
                 writeInodeAndName(disk_fd, directoryInodeIndex, newInode, name);
                 sync_client.WriteUnlock(directoryInodeIndex);
                 return;
             }
+            LseekOnDisk(disk_fd, blocksOffset + block * blockSize + (row + 1) * 32, SEEK_SET,
+                            [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
             row++;
-        } while (index != 0);
+        }
     }
     sync_client.WriteUnlock(directoryInodeIndex);
     throw std::domain_error("Cannot change directory");
@@ -347,13 +350,13 @@ void MFSClient::writeInodeAndName(
     if (newInodeIndex != 0) {
         WriteToDisk(disk_fd, &newInodeIndex, sizeof(u_int32_t),
                     [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
-        WriteToDisk(disk_fd, name.c_str(), sizeof(name.c_str()),
+        WriteToDisk(disk_fd, name.c_str(), name.length(),
                     [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
     } else {
         char buff[32];
         for (int i = 0; i < 32; ++i)
             buff[i] = '\0';
-        WriteToDisk(disk_fd, &buff, sizeof(32),
+        WriteToDisk(disk_fd, buff, 32,
                     [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
     }
 }
@@ -590,14 +593,14 @@ void MFSClient::freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long ind
 }
 
 void MFSClient::ReadFromDisk(int disk_fd, void *buf, size_t size, std::function<void()> functor) {
-    if (read(disk_fd, &buf, size) < 0) {
+    if (read(disk_fd, buf, size) < 0) {
         functor();
         throw std::ios_base::failure("Cannot read virtual disk");
     }
 }
 
 void MFSClient::WriteToDisk(int disk_fd, const void *buf, size_t size, std::function<void()> functor) {
-    if (write(disk_fd, &buf, size) < 0) {
+    if (write(disk_fd, buf, size) < 0) {
         functor();
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
