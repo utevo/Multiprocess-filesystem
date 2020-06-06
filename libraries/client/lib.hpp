@@ -40,6 +40,7 @@ private:
   void writeInodeAndName(int disk_fd, const u_int32_t& directoryInodeIndex,
           const u_int32_t& newInodeIndex, const std::string& name);
 
+  void makeRoot(); //creates root directory
 
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?

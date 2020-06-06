@@ -43,13 +43,37 @@ void MFSClient::mfs_mount(char *path) {
     blocksOffset = allocationBitmapOffset + allocationBitmap * blockSize;
     close(fd);
 
-    //TODO create root directory as inode which index is 0
-    //manually do mfs_mkdir("/")
-    //takeup inode 0
-    //takeup block 0
+    makeRoot();
+}
 
-    //addInodeToDirectory(1, 1, ".");
-    //addInodeToDirectory(1, 1, "..");
+void MFSClient::makeRoot()
+{
+    getAndTakeUpFirstFreeInode(); //should take up inode 0
+    getAndTakeUpFirstFreeBlock(); //should take up block 0
+
+    u_int32_t rootInode = getAndTakeUpFirstFreeInode(); //should take up inode 1
+    u_int32_t rootBlock = getAndTakeUpFirstFreeBlock(); //should take up inode 1
+
+    Inode inode;
+    inode.valid = 1;
+    inode.type = DIRECTORY;
+    inode.size = blockSize;
+    inode.direct_idxs[0] = rootBlock;
+
+    int disk = openAndSeek(inodes + rootInode * inodeSize);
+    sync_client.WriteLock(rootInode);
+    //LseekOnDisk(disk, inodesOffset + rootInode * inodeSize, SEEK_SET,
+    //            [&]() { sync_client.WriteUnlock(rootInode); });
+    //WriteToDisk(disk, &inode, sizeof(Inode),
+    //            [&]() { sync_client.WriteUnlock(rootInode); });
+    //nie moge po prostu tak:
+    int result = write(disk, &inode, sizeof(Inode));
+    sync_client.WriteUnlock(rootInode);
+
+    close(disk);
+
+    addInodeToDirectory(rootInode, rootInode, ".");
+    addInodeToDirectory(rootInode, rootInode, "..");
 }
 
 int MFSClient::mfs_open(char *name, int mode) {
@@ -127,13 +151,14 @@ int MFSClient::mfs_unlink(char *name) {
 }
 
 int MFSClient::mfs_mkdir(char *name) {
-    //TODO check if / or akdljf//kajdklfj
+    if(split(name, '/').size() == 0)
+        throw std::invalid_argument("Cannot make directory with empty name");
 
     //get newName 
     std::string newName = Handler::getFileName(name);
 
     //get parent inode:
-    u_int32_t parent = getInode(Handler::getDirectory(name));
+    u_int32_t parentInode = getInode(Handler::getDirectory(name));
     //take up and get new dir inode and first data block:
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
     u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
@@ -146,10 +171,10 @@ int MFSClient::mfs_mkdir(char *name) {
     inode.direct_idxs[0] = blockIndex;
 
     //add parent references:
-    addInodeToDirectory(parent, inodeIndex, newName);
+    addInodeToDirectory(parentInode, inodeIndex, newName);
     //add newdir references:
     addInodeToDirectory(inodeIndex, inodeIndex, ".");
-    addInodeToDirectory(inodeIndex, parent, "..");
+    addInodeToDirectory(inodeIndex, parentInode, "..");
 
     //write the inode:
     sync_client.WriteLock(inodeIndex);
