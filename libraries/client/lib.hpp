@@ -53,6 +53,7 @@ private:
 
   void clearBlock(u_int32_t index);
   void clearInode(u_int32_t index);
+  void clearIndirectBlocks(int disk, int index);
 
 
   //functor when operation fails, e.g. unlock sync
