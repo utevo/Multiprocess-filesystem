@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <vector>
 #include <cmath>
+
 #include "lib.hpp"
 
 #include "../core/sync.hpp"
@@ -10,8 +11,6 @@
 
 extern int test_client_lib(int x) { return 1 * x; }
 
-extern const u_int32_t kBlockSize;
-extern const u_int32_t kInodeSize;
 
 const unsigned NORMAL_FILE = 0;
 const unsigned DIRECTORY = 1;

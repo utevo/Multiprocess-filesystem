@@ -4,8 +4,8 @@
 #include <iostream>
 #include <vector>
 
-extern const u_int32_t kBlockSize;
-extern const u_int32_t kInodeSize;
+const u_int32_t kBlockSize = 4096;
+const u_int32_t kInodeSize = 32;
 
 struct Superblock {
   u_int32_t block_size = kBlockSize;

@@ -10,6 +10,8 @@
 
 #include "../core/utils.hpp"
 
+static const u_int8_t kEmptyBlock[kBlockSize] = {0};
+
 u_int CalcInodeBitmapBlocks(u_int inodes_blocks) noexcept {
   u_int inodes_in_one_block = kBlockSize / kInodeSize;
   u_int inodes = inodes_blocks * inodes_in_one_block;
@@ -32,12 +34,16 @@ void AppendSuperblock(int fd, Superblock superblock) {
     throw std::iostream::failure("Couldn't add superblock");
 }
 
+void AppendEmptyBlock(int fd) {
+  const int result = write(fd, kEmptyBlock, kBlockSize);
+  if (result != kBlockSize) {
+    throw std::iostream::failure("Couldn't add empty block");
+  }
+}
+
 void AppendEmptyBlocks(int fd, u_int blocks) {
-  u_int64_t bytes = blocks * kBlockSize;
-  const int before = lseek(fd, 0, SEEK_CUR);
-  const int after = lseek(fd, bytes - 1, SEEK_CUR);
-  if (after - before != bytes - 1) {
-    throw std::iostream::failure("Couldn't add blocks");
+  for (u_int i=0; i < blocks; ++i) {
+    AppendEmptyBlock(fd);
   }
 }
 
