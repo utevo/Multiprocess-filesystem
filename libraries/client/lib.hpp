@@ -30,7 +30,6 @@ private:
   int getLowestDescriptor() const;
 
   u_int32_t getInode(std::string path);
-  u_int32_t getParentInode(std::string path);
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 
   void addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name);
@@ -41,6 +40,7 @@ private:
   void writeInodeAndName(int disk_fd, const u_int32_t& directoryInodeIndex,
           const u_int32_t& newInodeIndex, const std::string& name);
 
+  void makeRoot(); //creates root directory
 
   u_int32_t getAndTakeUpFirstFreeInode(); //return inode number
     //TODO think about: get n blocks by one call and return vector?

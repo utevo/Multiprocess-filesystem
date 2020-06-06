@@ -43,8 +43,37 @@ void MFSClient::mfs_mount(char *path) {
     blocksOffset = allocationBitmapOffset + allocationBitmap * blockSize;
     close(fd);
 
-    //TODO create root directory as inode which index is 0
-    //manually do mfs_mkdir("/")
+    makeRoot();
+}
+
+void MFSClient::makeRoot()
+{
+    getAndTakeUpFirstFreeInode(); //should take up inode 0
+    getAndTakeUpFirstFreeBlock(); //should take up block 0
+
+    u_int32_t rootInode = getAndTakeUpFirstFreeInode(); //should take up inode 1
+    u_int32_t rootBlock = getAndTakeUpFirstFreeBlock(); //should take up inode 1
+
+    Inode inode;
+    inode.valid = 1;
+    inode.type = DIRECTORY;
+    inode.size = blockSize;
+    inode.direct_idxs[0] = rootBlock;
+
+    int disk = openAndSeek(inodes + rootInode * inodeSize);
+    sync_client.WriteLock(rootInode);
+    //LseekOnDisk(disk, inodesOffset + rootInode * inodeSize, SEEK_SET,
+    //            [&]() { sync_client.WriteUnlock(rootInode); });
+    //WriteToDisk(disk, &inode, sizeof(Inode),
+    //            [&]() { sync_client.WriteUnlock(rootInode); });
+    //nie moge po prostu tak:
+    int result = write(disk, &inode, sizeof(Inode));
+    sync_client.WriteUnlock(rootInode);
+
+    close(disk);
+
+    addInodeToDirectory(rootInode, rootInode, ".");
+    addInodeToDirectory(rootInode, rootInode, "..");
 }
 
 int MFSClient::mfs_open(char *name, int mode) {
@@ -140,49 +169,38 @@ int MFSClient::mfs_unlink(char *name) {
 }
 
 int MFSClient::mfs_mkdir(char *name) {
-    //get both names 
-    std::vector<std::string> directories = split(name, '/');
-    std::string newName, parentName;
-    if (directories.size() == 0) throw std::invalid_argument("Name cannot be empty");
-    if (directories.size() == 1) {
-        newName = directories[0];
-        parentName = '/';
-    } else {
-        newName = directories[directories.size() - 1];
-        parentName = directories[directories.size()];
-    }
+    if(split(name, '/').size() == 0)
+        throw std::invalid_argument("Cannot make directory with empty name");
+
+    //get newName 
+    std::string newName = Handler::getFileName(name);
 
     //get parent inode:
-    u_int32_t parent = getParentInode(name);
-    //take up and get new dir inode:
+    u_int32_t parentInode = getInode(Handler::getDirectory(name));
+    //take up and get new dir inode and first data block:
     u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
-    sync_client.WriteLock(inodeIndex);
+    u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
     //set new inode object:
     int disk = openAndSeek(inodes + inodeIndex * inodeSize);
     Inode inode;
     inode.valid = 1;
     inode.type = DIRECTORY;
-    inode.size = 0; //TODO determine size
-
-    //get first free block:
-    u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+    inode.size = blockSize; //TODO determine size
     inode.direct_idxs[0] = blockIndex;
 
-    //write ., .. references in directory memory block:
-    disk = openAndSeek(blocks + blockIndex * blockSize);
-    u_int32_t buf[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    buf[0] = inodeIndex; //reference to .
-    buf[1] = '.';
-    buf[8] = inodeIndex; //TODO add reference to .., getInode(string path) needed
-    buf[9] = '.' + 256 * '.';
-    write(disk, &buf, sizeof(buf));
+    //add parent references:
+    addInodeToDirectory(parentInode, inodeIndex, newName);
+    //add newdir references:
+    addInodeToDirectory(inodeIndex, inodeIndex, ".");
+    addInodeToDirectory(inodeIndex, parentInode, "..");
 
     //write the inode:
+    sync_client.WriteLock(inodeIndex);
     int result = write(disk, &inode, sizeof(Inode));
+    sync_client.WriteUnlock(inodeIndex);
     close(disk);
     if (result < 0)
         return -1;
-    sync_client.WriteUnlock(inodeIndex);
 
     return 0;
 }
@@ -230,19 +248,9 @@ u_int32_t MFSClient::getInode(std::string path) {
     return currentInode;
 }
 
-u_int32_t MFSClient::getParentInode(std::string path) {
-    int disk = openAndSeek(inodesOffset);
-    std::vector<std::string> directories = split(path, '/');
-    u_int32_t currentInode = 0;
-    for (unsigned int iter = 0; iter < directories.size() - 1; ++iter) {
-        currentInode = getInodeFromDirectoryByName(disk, directories[iter], currentInode);
-    }
-    return currentInode;
-}
-
-u_int32_t MFSClient::getInodeFromDirectoryByName(const int &disk_fd,
-                                                 const std::string &filename,
-                                                 const u_int32_t &directoryInode) {
+u_int32_t MFSClient::getInodeFromDirectoryByName(const int& disk_fd,
+                                                 const std::string& filename,
+                                                 const u_int32_t& directoryInode) {
     sync_client.ReadLock(directoryInode);
     LseekOnDisk(disk_fd, inodesOffset + directoryInode * inodeSize, SEEK_SET,
                 [&]() { sync_client.ReadUnlock(directoryInode); });
@@ -601,13 +609,3 @@ void MFSClient::LseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
-
-
-
-
-
-
-
-
-
-
