@@ -110,6 +110,15 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 }
 
 int MFSClient::mfs_write(int fd, char *buf, int len) {
+    OpenFile open_file = open_files.at(fd);
+    u_int32_t inode_idx = open_file.inode_idx;
+    u_int32_t offset = open_file.offset;
+    if(open_file.status == FileStatus::RDONLY)
+        return -1;
+    sync_client.WriteLock(inode_idx);
+
+
+    sync_client.WriteUnlock(inode_idx);
     return 0;
 }
 
