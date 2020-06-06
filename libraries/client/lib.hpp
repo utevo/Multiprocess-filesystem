@@ -33,7 +33,7 @@ private:
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 
   void addInodeToDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex, const std::string& name);
-  void removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeIndex);
+  void removeInodeFromDirectory(const u_int32_t& directoryInodeIndex, const u_int32_t& inodeToDelete);
 
   void directoryFill(int disk_fd, const u_int32_t& directoryInodeIndex,
           const u_int32_t& inodeToChange, const u_int32_t &newInode, const std::string& name);
@@ -50,6 +50,10 @@ private:
   void freeInode(unsigned long index);
   void freeBlock(unsigned long index);
   void freeBitmapIndex(int disk_fd, u_int32_t offset, unsigned long index) const;
+
+  void clearBlock(u_int32_t index);
+  void clearInode(u_int32_t index);
+  void clearIndirectBlocks(int disk, int index);
 
 
   //functor when operation fails, e.g. unlock sync
