@@ -292,20 +292,20 @@ bool IsWriterWait(int msqid, u_int32_t inode_idx) {
   return is_wait;
 }
 
-bool IsRemaindOneReader(int msqid, u_int32_t inode_idx) {
+bool DontRemindAnyReader(int msqid, u_int32_t inode_idx) {
   State state = RecieveInodeState(msqid, inode_idx);
 
-  bool is_remaind_one_reader = (state.readers == 1);
+  bool is_remind_one_reader = (state.readers == 0);
   SendInodeState(msqid, inode_idx, state);
 
-  return is_remaind_one_reader;
+  return is_remind_one_reader;
 }
 
 bool MustSignalWriter(int msqid, u_int32_t inode_idx) {
   bool is_wait = IsWriterWait(msqid, inode_idx);
-  bool is_remaind_one_reader = IsRemaindOneReader(msqid, inode_idx);
+  bool dont_remind_any_reader = DontRemindAnyReader(msqid, inode_idx);
 
-  return is_wait && is_remaind_one_reader;
+  return is_wait && dont_remind_any_reader;
 }
 
 void SignalWriter(int msqid, u_int32_t inode_idx) {
