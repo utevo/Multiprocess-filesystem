@@ -195,36 +195,46 @@ int MFSClient::mfs_mkdir(char *name) {
     if(split(name, '/').size() == 0)
         throw std::invalid_argument("Cannot make directory with empty name");
 
-    //get newName 
-    std::string newName = Handler::getFileName(name);
+    int disk;
 
-    //get parent inode:
-    u_int32_t parentInode = getInode(Handler::getDirectory(name));
-    //take up and get new dir inode and first data block:
-    u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
-    u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
-    //set new inode object:
-    int disk = openAndSeek(inodes + inodeIndex * inodeSize);
-    Inode inode;
-    inode.valid = 1;
-    inode.type = DIRECTORY;
-    inode.size = blockSize; //TODO determine size
-    inode.direct_idxs[0] = blockIndex;
+    try
+    {
+        //get newName 
+        std::string newName = Handler::getFileName(name);
 
-    //add parent references:
-    addInodeToDirectory(parentInode, inodeIndex, newName);
-    //add newdir references:
-    addInodeToDirectory(inodeIndex, inodeIndex, ".");
-    addInodeToDirectory(inodeIndex, parentInode, "..");
+        //get parent inode:
+        u_int32_t parentInode = getInode(Handler::getDirectory(name));
+        //take up and get new dir inode and first data block:
+        u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
+        u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+        //set new inode object:
+        disk = openAndSeek(inodesOffset + inodeIndex * inodeSize);
+        Inode inode;
+        inode.valid = 1;
+        inode.type = DIRECTORY;
+        inode.size = blockSize; //TODO determine size
+        inode.direct_idxs[0] = blockIndex;
 
-    //write the inode:
-    sync_client.WriteLock(inodeIndex);
-    int result = write(disk, &inode, sizeof(Inode));
-    sync_client.WriteUnlock(inodeIndex);
-    close(disk);
-    if (result < 0)
+        //write the inode:
+        sync_client.WriteLock(inodeIndex);
+
+        writeToDisk(disk, &inode, sizeof(Inode),
+                    [&]() { sync_client.WriteUnlock(inodeIndex); });
+
+        sync_client.WriteUnlock(inodeIndex);
+
+        //add parent references:
+        addInodeToDirectory(parentInode, inodeIndex, newName);
+        //add newdir references:
+        addInodeToDirectory(inodeIndex, inodeIndex, ".");
+        addInodeToDirectory(inodeIndex, parentInode, "..");
+    }
+    catch(const std::exception&)
+    {
+        close(disk);
         return -1;
-
+    }
+    
     return 0;
 }
 std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(char *name) {
