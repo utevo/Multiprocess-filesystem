@@ -30,7 +30,7 @@ private:
   int openAndSeek(const int& offset = 0) const;
   int getLowestDescriptor() const;
 
-
+  u_int32_t blocksToWrite(const u_int32_t& fileOffset, const u_int32_t& length) const;
   Inode& getInodeByIndex(u_int32_t index);
   //returns the block number from the sequence of saved blocks of the file
 

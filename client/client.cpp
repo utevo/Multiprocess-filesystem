@@ -22,9 +22,12 @@ int main() {
     client.mfs_creat("/plik4.txt", FileStatus::RDWR);
     client.mfs_mkdir("/folder");
     client.mfs_mkdir("/folder2");
+    client.mfs_mkdir("/folder2");
+
     client.mfs_creat("/folder/plik4.txt", FileStatus::RDWR);
     client.mfs_creat("/plik5.txt", FileStatus::RDWR);
     client.mfs_unlink("/plik3.txt");
+    client.mfs_creat("/plik6.txt", FileStatus::RDWR);
     client.mfs_creat("/plik6.txt", FileStatus::RDWR);
     for(auto s : client.mfs_ls("/"))
         std::cout << s.first << "\t" << s.second << std::endl;

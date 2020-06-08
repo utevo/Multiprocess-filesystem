@@ -149,7 +149,10 @@ int MFSClient::mfs_write(int fd, char *buf, int len) {
 
         sync_client.WriteLock(inode_idx);
         Inode inode = getInodeByIndex(inode_idx);
-        u_int32_t actualBlock = myCeil(offset, blockSize);
+
+        u_int32_t numberOfNewBlocks = myCeil((offset + len) - inode.size,blockSize);
+        u_int32_t numberOfBlocksToWrite = blocksToWrite(offset, len);
+        u_int32_t actualBlock = offset / blockSize;
 
 
         int newBlock = 0;
@@ -165,6 +168,14 @@ int MFSClient::mfs_write(int fd, char *buf, int len) {
     }
 }
 
+u_int32_t MFSClient::blocksToWrite(const u_int32_t& fileOffset, const u_int32_t& length) const {
+    u_int32_t bytesToWriteInCurrentBlock = blockSize - (fileOffset % blockSize);
+    if(length < bytesToWriteInCurrentBlock)
+        return 1;
+    int bytesToWriteInNextBlocks = length - bytesToWriteInCurrentBlock;
+    return 1 + myCeil(bytesToWriteInNextBlocks, blockSize);
+}
+
 uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode &inode, u_int32_t blockNumberInFile) {
     int blockIndex;
     u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
@@ -175,7 +186,8 @@ uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode &ino
         }
     } else if (blockNumberInFile < numberOfIndirect + 4) {
         int disk_fd = openAndSeek();
-        return getBlockInFileByNumberIndirect(disk_fd, inode_idx, inode, blockNumberInFile);
+        u_int32_t blockNumberInIndirect = blockNumberInFile - 4;
+        return getBlockInFileByNumberIndirect(disk_fd, inode_idx, inode, blockNumberInIndirect);
     } else {
         return -1;
     }
@@ -185,6 +197,8 @@ uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode &ino
 uint32_t MFSClient::getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_idx,
                                                    const Inode &inode,
                                                    u_int32_t blockNumberInFile) {
+    lseekOnDisk(disk_fd, blocksOffset + inode.indirect_idx * blockSize + (blockNumberInFile - 1) * sizeof(u_int32_t),
+                SEEK_SET, [&]() {});
 
 }
 
@@ -699,6 +713,8 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
+
 
 
 
