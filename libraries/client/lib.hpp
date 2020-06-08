@@ -31,8 +31,14 @@ private:
   int openAndSeek(const int& offset = 0) const;
   int getLowestDescriptor() const;
 
-  Inode& getInodeByIndex(u_int32_t index);
 
+  Inode& getInodeByIndex(u_int32_t index);
+  //returns the block number from the sequence of saved blocks of the file
+
+  uint32_t getBlockInFileByNumber(u_int32_t inode_idx, const Inode& inode, u_int32_t blockNumberInFile);
+  uint32_t getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_idx, const Inode &inode, u_int32_t blockNumberInFile);
+
+  bool CheckIfInodeExists(const std::string& name, const u_int32_t& directoryInode);
   u_int32_t getInode(std::string path);
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
 

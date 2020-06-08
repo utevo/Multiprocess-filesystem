@@ -45,8 +45,7 @@ void MFSClient::mfs_mount(const char *path) {
     makeRoot();
 }
 
-void MFSClient::makeRoot()
-{
+void MFSClient::makeRoot() {
     getAndTakeUpFirstFreeInode(); //should take up inode 0
     getAndTakeUpFirstFreeBlock(); //should take up block 0
 
@@ -94,6 +93,9 @@ int MFSClient::mfs_creat(const char *name, int mode) {
         std::string directoryPath = Handler::getDirectory(name);
         u_int32_t directoryInodeIndex = getInode(directoryPath);
 
+        if (CheckIfInodeExists(filename, directoryInodeIndex))
+            return -1;
+
         addInodeToDirectory(directoryInodeIndex, inodeIndex, filename);
 
         Inode inode;
@@ -132,7 +134,7 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 
         sync_client.ReadUnlock(inode_idx);
     }
-    catch (std::exception&) {
+    catch (std::exception &) {
         return -1;
     }
 }
@@ -142,35 +144,47 @@ int MFSClient::mfs_write(int fd, const char *buf, int len) {
         OpenFile open_file = open_files.at(fd);
         u_int32_t inode_idx = open_file.inode_idx;
         u_int32_t offset = open_file.offset;
-        if(open_file.status == FileStatus::RDONLY)
+        if (open_file.status == FileStatus::RDONLY)
             return -1;
 
         sync_client.WriteLock(inode_idx);
         Inode inode = getInodeByIndex(inode_idx);
         u_int32_t actualBlock = myCeil(offset, blockSize);
-        int blockIndex;
-        u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
-        if(actualBlock < 4) {
-            blockIndex = inode.direct_idxs[actualBlock];
-            if(blockIndex == 0) {
-                sync_client.WriteUnlock(inode_idx);
-                return -1;
-            }
-        } else if(actualBlock < numberOfIndirect + 4) {
-            //indirect block
-        } else if(actualBlock < numberOfIndirect * numberOfIndirect + numberOfIndirect + 4){
-            //doubly indirectq
-        } else {
-            sync_client.WriteUnlock(inode_idx);
-            return -1;
-        }
+
+
+        int newBlock = 0;
+        if (offset + len > inode.size)
+            newBlock = getAndTakeUpFirstFreeBlock();
+
 
         u_int32_t offsetInBlock = offset % blockSize;
         sync_client.WriteUnlock(inode_idx);
         return 0;
-    } catch (std::exception&) {
+    } catch (std::exception &) {
         return -1;
     }
+}
+
+uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode &inode, u_int32_t blockNumberInFile) {
+    int blockIndex;
+    u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
+    if (blockNumberInFile < 4) {
+        blockIndex = inode.direct_idxs[blockNumberInFile];
+        if (blockIndex == 0) {
+            return -1;
+        }
+    } else if (blockNumberInFile < numberOfIndirect + 4) {
+        int disk_fd = openAndSeek();
+        return getBlockInFileByNumberIndirect(disk_fd, inode_idx, inode, blockNumberInFile);
+    } else {
+        return -1;
+    }
+    return blockIndex;
+}
+
+uint32_t MFSClient::getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_idx,
+                                                   const Inode &inode,
+                                                   u_int32_t blockNumberInFile) {
 
 }
 
@@ -195,35 +209,47 @@ int MFSClient::mfs_mkdir(const char *name) {
     if(split(name, '/').size() == 0)
         throw std::invalid_argument("Cannot make directory with empty name");
 
-    //get newName 
-    std::string newName = Handler::getFileName(name);
+    int disk;
 
-    //get parent inode:
-    u_int32_t parentInode = getInode(Handler::getDirectory(name));
-    //take up and get new dir inode and first data block:
-    u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
-    u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
-    //set new inode object:
-    int disk = openAndSeek(inodes + inodeIndex * inodeSize);
-    Inode inode;
-    inode.valid = 1;
-    inode.type = DIRECTORY;
-    inode.size = blockSize; //TODO determine size
-    inode.direct_idxs[0] = blockIndex;
+    try {
+        //get newName 
+        std::string newName = Handler::getFileName(name);
 
-    //add parent references:
-    addInodeToDirectory(parentInode, inodeIndex, newName);
-    //add newdir references:
-    addInodeToDirectory(inodeIndex, inodeIndex, ".");
-    addInodeToDirectory(inodeIndex, parentInode, "..");
+        //get parent inode:
+        u_int32_t parentInode = getInode(Handler::getDirectory(name));
+        //take up and get new dir inode and first data block:
+        u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
+        u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
+        //set new inode object:
+        disk = openAndSeek(inodesOffset + inodeIndex * inodeSize);
 
-    //write the inode:
-    sync_client.WriteLock(inodeIndex);
-    int result = write(disk, &inode, sizeof(Inode));
-    sync_client.WriteUnlock(inodeIndex);
-    close(disk);
-    if (result < 0)
+        if (CheckIfInodeExists(newName, parentInode))
+            return -1;
+
+        Inode inode;
+        inode.valid = 1;
+        inode.type = DIRECTORY;
+        inode.size = blockSize; //TODO determine size
+        inode.direct_idxs[0] = blockIndex;
+
+        //write the inode:
+        sync_client.WriteLock(inodeIndex);
+
+        writeToDisk(disk, &inode, sizeof(Inode),
+                    [&]() { sync_client.WriteUnlock(inodeIndex); });
+
+        sync_client.WriteUnlock(inodeIndex);
+
+        //add parent references:
+        addInodeToDirectory(parentInode, inodeIndex, newName);
+        //add newdir references:
+        addInodeToDirectory(inodeIndex, inodeIndex, ".");
+        addInodeToDirectory(inodeIndex, parentInode, "..");
+    }
+    catch (const std::exception &) {
+        close(disk);
         return -1;
+    }
 
     return 0;
 }
@@ -233,27 +259,21 @@ std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(const char *name
     int disk = openAndSeek(inodesOffset + directoryIndex * inodeSize);
     Inode directoryInode;
     sync_client.ReadLock(directoryIndex);
-    readFromDisk(disk, &directoryInode, sizeof(Inode), [&]() { sync_client.ReadUnlock(directoryIndex); } );
-    for(auto blockIndex : directoryInode.direct_idxs) {
-        lseekOnDisk(disk, blocksOffset + blockIndex * blockSize, SEEK_SET, [&]() { sync_client.ReadUnlock(directoryIndex); });
+    readFromDisk(disk, &directoryInode, sizeof(Inode), [&]() { sync_client.ReadUnlock(directoryIndex); });
+    for (auto blockIndex : directoryInode.direct_idxs) {
+        lseekOnDisk(disk, blocksOffset + blockIndex * blockSize, SEEK_SET,
+                    [&]() { sync_client.ReadUnlock(directoryIndex); });
         for (int i = 0; i < 128; ++i) {
             u_int32_t fileInodeIndex;
-            readFromDisk(disk, &fileInodeIndex, sizeof(u_int32_t), [&]() { sync_client.ReadUnlock(directoryIndex); } );
+            readFromDisk(disk, &fileInodeIndex, sizeof(u_int32_t), [&]() { sync_client.ReadUnlock(directoryIndex); });
             char buff[28];
-            readFromDisk(disk, buff, 28, [&]() { sync_client.ReadUnlock(directoryIndex); } );
-            if(fileInodeIndex != 0){
+            readFromDisk(disk, buff, 28, [&]() { sync_client.ReadUnlock(directoryIndex); });
+            if (fileInodeIndex != 0) {
                 files.push_back(std::make_pair(fileInodeIndex, buff));
             }
         }
     }
     return files;
-}
-
-int MFSClient::mfs_rmdir(char *name) {
-    //free all blocks
-    //free inode
-    //remove from parent
-    return 0;
 }
 
 int MFSClient::openAndSeek(const int &offset) const {
@@ -276,12 +296,27 @@ int MFSClient::getLowestDescriptor() const {
     return lowestFd;
 }
 
-Inode& MFSClient::getInodeByIndex(u_int32_t index) {
+
+Inode &MFSClient::getInodeByIndex(u_int32_t index) {
     int disk = openAndSeek(inodesOffset + index * inodeSize);
     Inode inode;
-    readFromDisk(disk, &inode, sizeof(Inode), [&]() { close(disk); } );
+    readFromDisk(disk, &inode, sizeof(Inode), [&]() { close(disk); });
     return inode;
 }
+
+bool MFSClient::CheckIfInodeExists(const std::string &filename, const u_int32_t &directoryInode) {
+    int disk_fd = openAndSeek();
+    try {
+        u_int32_t index = getInodeFromDirectoryByName(disk_fd, filename, directoryInode);
+    }
+    catch (std::exception &) {
+        close(disk_fd);
+        return false;
+    }
+    close(disk_fd);
+    return true;
+}
+
 
 u_int32_t MFSClient::getInode(std::string path) {
     int disk = openAndSeek(inodesOffset);
@@ -299,9 +334,9 @@ u_int32_t MFSClient::getInode(std::string path) {
     return currentInode;
 }
 
-u_int32_t MFSClient::getInodeFromDirectoryByName(const int& disk_fd,
-                                                 const std::string& filename,
-                                                 const u_int32_t& directoryInode) {
+u_int32_t MFSClient::getInodeFromDirectoryByName(const int &disk_fd,
+                                                 const std::string &filename,
+                                                 const u_int32_t &directoryInode) {
     sync_client.ReadLock(directoryInode);
     lseekOnDisk(disk_fd, inodesOffset + directoryInode * inodeSize, SEEK_SET,
                 [&]() { sync_client.ReadUnlock(directoryInode); });
@@ -387,7 +422,7 @@ void MFSClient::directoryFill(int disk_fd,
                 return;
             }
             lseekOnDisk(disk_fd, blocksOffset + block * blockSize + (row + 1) * 32, SEEK_SET,
-                            [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
+                        [&]() { sync_client.WriteUnlock(directoryInodeIndex); });
             row++;
         }
     }
@@ -552,7 +587,7 @@ void MFSClient::clearInode(u_int32_t index) {
         for (auto &block : indirectBlockIndexes) {
             if (block == 0)
                 break;
-            clearIndirectBlocks(disk ,index);
+            clearIndirectBlocks(disk, index);
         }
         freeBlock(inode.double_indirect_idx);
         freeBlock(index);
@@ -663,6 +698,9 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
+
+
 
 
 
