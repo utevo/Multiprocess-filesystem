@@ -20,7 +20,7 @@ MFSClient::MFSClient() {
     error = 0;
 }
 
-void MFSClient::mfs_mount(char *path) {
+void MFSClient::mfs_mount(const char *path) {
     disk_path = path;
     int fd = openAndSeek();
     if (read(fd, &blockSize, sizeof(u_int32_t)) <= 0)
@@ -70,7 +70,7 @@ void MFSClient::makeRoot() {
     addInodeToDirectory(rootInode, rootInode, "..");
 }
 
-int MFSClient::mfs_open(char *name, int mode) {
+int MFSClient::mfs_open(const char *name, int mode) {
     try {
         u_int32_t inodeIndex = getInode(name);
         OpenFile openFile{Handler::getStatus(mode), 0, inodeIndex};
@@ -84,7 +84,7 @@ int MFSClient::mfs_open(char *name, int mode) {
     }
 }
 
-int MFSClient::mfs_creat(char *name, int mode) {
+int MFSClient::mfs_creat(const char *name, int mode) {
     int disk;
     try {
         u_int32_t inodeIndex = getAndTakeUpFirstFreeInode();
@@ -139,7 +139,7 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
     }
 }
 
-int MFSClient::mfs_write(int fd, char *buf, int len) {
+int MFSClient::mfs_write(int fd, const char *buf, int len) {
     try {
         OpenFile open_file = open_files.at(fd);
         u_int32_t inode_idx = open_file.inode_idx;
@@ -192,7 +192,7 @@ int MFSClient::mfs_lseek(int fd, int whence, int offset) {
     return 0;
 }
 
-int MFSClient::mfs_unlink(char *name) {
+int MFSClient::mfs_unlink(const char *name) {
     try {
         u_int32_t inodeToDelete = getInode(name);
         u_int32_t parentInode = getInode(Handler::getDirectory(name));
@@ -205,8 +205,8 @@ int MFSClient::mfs_unlink(char *name) {
     }
 }
 
-int MFSClient::mfs_mkdir(char *name) {
-    if (split(name, '/').size() == 0)
+int MFSClient::mfs_mkdir(const char *name) {
+    if(split(name, '/').size() == 0)
         throw std::invalid_argument("Cannot make directory with empty name");
 
     int disk;
@@ -253,8 +253,7 @@ int MFSClient::mfs_mkdir(char *name) {
 
     return 0;
 }
-
-std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(char *name) {
+std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(const char *name) {
     std::vector<std::pair<uint32_t, std::string>> files;
     u_int32_t directoryIndex = getInode(name);
     int disk = openAndSeek(inodesOffset + directoryIndex * inodeSize);

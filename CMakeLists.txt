@@ -39,5 +39,10 @@ foreach(TEST ${TESTS})
     target_link_libraries(${NAME} PUBLIC libcore)
     target_link_libraries(${NAME} PUBLIC libclient)
     target_link_libraries(${NAME} PUBLIC libmanager)
-
 endforeach()
+
+
+file(GLOB SOURCES_CLIENT2 "client2/*.cpp" "client2/*.hpp")
+add_executable(client2 ${SOURCES_CLIENT2})
+target_link_libraries(libclient PUBLIC libcore)
+target_link_libraries(client2 PUBLIC libclient)
