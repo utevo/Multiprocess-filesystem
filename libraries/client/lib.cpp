@@ -442,7 +442,7 @@ u_int32_t MFSClient::getAndTakeUpFirstFreeBlock() {
 }
 
 u_int32_t MFSClient::getAndTakeUpFirstFreeInode() {
-    sync_client.InodeBitmapLock();
+    sync_client.InodesBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     int inodeNumber;
     try {
@@ -450,11 +450,11 @@ u_int32_t MFSClient::getAndTakeUpFirstFreeInode() {
     }
     catch (std::exception &e) {
         close(disk);
-        sync_client.InodeBitmapUnlock();
+        sync_client.InodesBitmapUnlock();
         throw e;
     }
     close(disk);
-    sync_client.InodeBitmapUnlock();
+    sync_client.InodesBitmapUnlock();
     return inodeNumber;
 }
 
@@ -512,7 +512,7 @@ u_int32_t MFSClient::getFirstFreeBitmapIndex(
 void MFSClient::freeInode(unsigned long index) {
     if (index > inodes || index < 0)
         throw std::invalid_argument("Invalid inode index");
-    sync_client.InodeBitmapLock();
+    sync_client.InodesBitmapLock();
     int disk = openAndSeek(inodesBitmapOffset);
     try {
         freeBitmapIndex(disk, inodesBitmapOffset, index);
@@ -520,11 +520,11 @@ void MFSClient::freeInode(unsigned long index) {
     }
     catch (std::exception &e) {
         close(disk);
-        sync_client.InodeBitmapUnlock();
+        sync_client.InodesBitmapUnlock();
         throw e;
     }
     close(disk);
-    sync_client.InodeBitmapUnlock();
+    sync_client.InodesBitmapUnlock();
 }
 
 void MFSClient::clearInode(u_int32_t index) {

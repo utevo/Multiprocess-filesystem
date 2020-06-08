@@ -90,9 +90,7 @@ private:
   std::string disk_path;
   //key - file descriptor, value - open file structure
   std::map<u_int32_t, OpenFile> open_files;
-  SyncClient sync_client;
-
-
+  MockSyncClient sync_client;
 };
 
 #endif

@@ -10,6 +10,9 @@
 
 #include "../core/utils.hpp"
 
+#include "../core/sync.hpp"
+
+
 static const u_int8_t kEmptyBlock[kBlockSize] = {0};
 
 u_int CalcInodeBitmapBlocks(u_int inodes_blocks) noexcept {
@@ -79,7 +82,15 @@ void AppendDataBlocks(int fd, u_int data_blocks) {
   }
 }
 
-extern void CreateFS(std::string path, u_int inodes_blocks, u_int data_blocks) {
+extern void InitSynchronization(const std::string path) {
+  InitSync(path);
+}
+
+extern void RemoveSynchronization(const std::string path) {
+  RemoveSync(path);
+}
+
+extern void CreateFS(const std::string path, u_int inodes_blocks, u_int data_blocks) {
   u_int inode_bitmap_blocks = CalcInodeBitmapBlocks(inodes_blocks);
   u_int allocation_bitmap_blocks = CalcAllocationBitmapBlocks(data_blocks);
 
