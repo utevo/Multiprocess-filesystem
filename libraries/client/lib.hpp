@@ -13,18 +13,19 @@ public:
   int error;
 
   MFSClient();
-  void mfs_mount(char *path);
+  void mfs_mount(const char *path);
 
-  int mfs_open(char *name, int mode);
-  int mfs_creat(char *name, int mode);
+  int mfs_open(const char *name, int mode);
+  int mfs_creat(const char *name, int mode);
   int mfs_read(int fd, char *buf, int len);
-  int mfs_write(int fd, char *buf, int len);
+  int mfs_write(int fd, const char *buf, int len);
   int mfs_lseek(int fd, int whence, int offset);
-  int mfs_unlink(char *name);
+  int mfs_unlink(const char *name);
 
   //TODO w ostatecznej wersji zwraca tylko vector<string>
-  std::vector<std::pair<uint32_t, std::string>> mfs_ls(char *name);
-  int mfs_mkdir(char *name);
+  std::vector<std::pair<uint32_t, std::string>> mfs_ls(const char *name);
+  int mfs_mkdir(const char *name);
+  int mfs_rmdir(char *name);
 
 private:
   int openAndSeek(const int& offset = 0) const;
