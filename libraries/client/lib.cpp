@@ -175,7 +175,7 @@ uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode& ino
         }
     } else if(blockNumberInFile < numberOfIndirect + 4) {
         int disk_fd = openAndSeek();
-        return getBlockInFileByNumberIndirect(inode_idx, inode, blockNumberInFile);
+        return getBlockInFileByNumberIndirect(disk_fd, inode_idx, inode, blockNumberInFile);
     } else {
         return -1;
     }
@@ -202,6 +202,7 @@ int MFSClient::mfs_unlink(char *name) {
     }
 }
 
+
 int MFSClient::mfs_mkdir(char *name) {
     if(split(name, '/').size() == 0)
         throw std::invalid_argument("Cannot make directory with empty name");
@@ -222,16 +223,18 @@ int MFSClient::mfs_mkdir(char *name) {
     inode.size = blockSize; //TODO determine size
     inode.direct_idxs[0] = blockIndex;
 
+    //write the inode:
+    sync_client.WriteLock(inodeIndex);
+    int result = write(disk, &inode, sizeof(Inode));
+    sync_client.WriteUnlock(inodeIndex);
+
     //add parent references:
     addInodeToDirectory(parentInode, inodeIndex, newName);
     //add newdir references:
     addInodeToDirectory(inodeIndex, inodeIndex, ".");
     addInodeToDirectory(inodeIndex, parentInode, "..");
 
-    //write the inode:
-    sync_client.WriteLock(inodeIndex);
-    int result = write(disk, &inode, sizeof(Inode));
-    sync_client.WriteUnlock(inodeIndex);
+
     close(disk);
     if (result < 0)
         return -1;
