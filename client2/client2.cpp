@@ -17,7 +17,7 @@ const std::string kHelpString = "create {path} - create file\n"
                                 "ls {path} - list directory contents";
 
 int openFile(MFSClient client, const std::string path) {
-  int fd = client.mfs_open(path.c_str(), 0400);
+  int fd = client.mfs_open(path.c_str(), FileStatus::RDWR);
   if (fd == -1) {
     throw std::ios_base::failure("This file doesn't exist");
   }
