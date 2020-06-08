@@ -22,12 +22,16 @@ public:
   int mfs_lseek(int fd, int whence, int offset);
   int mfs_unlink(char *name);
 
+  //TODO w ostatecznej wersji zwraca tylko vector<string>
+  std::vector<std::pair<uint32_t, std::string>> mfs_ls(char *name);
   int mfs_mkdir(char *name);
   int mfs_rmdir(char *name);
 
 private:
   int openAndSeek(const int& offset = 0) const;
   int getLowestDescriptor() const;
+
+  Inode& getInodeByIndex(u_int32_t index);
 
   u_int32_t getInode(std::string path);
   u_int32_t getInodeFromDirectoryByName(const int& disk_fd, const std::string& filename, const u_int32_t& directoryInode);
@@ -62,7 +66,6 @@ private:
   void lseekOnDisk(int disk_fd, off_t offset, int whence, std::function<void()> functor);
 
 
-  std::vector<std::pair<uint32_t, std::string>> ls(char *name);
 
 
   u_int32_t blockSize;

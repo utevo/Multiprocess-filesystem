@@ -123,27 +123,55 @@ int MFSClient::mfs_creat(char *name, int mode) {
 }
 
 int MFSClient::mfs_read(int fd, char *buf, int len) {
-    OpenFile open_file = open_files.at(fd);
-    u_int32_t inode_idx = open_file.inode_idx;
+    try {
+        OpenFile open_file = open_files.at(fd);
+        u_int32_t inode_idx = open_file.inode_idx;
+        sync_client.ReadLock(inode_idx);
 
-    sync_client.ReadLock(inode_idx);
+        // TODO
 
-    // TODO
-
-    sync_client.ReadUnlock(inode_idx);
+        sync_client.ReadUnlock(inode_idx);
+    }
+    catch (std::exception&) {
+        return -1;
+    }
 }
 
 int MFSClient::mfs_write(int fd, char *buf, int len) {
-    OpenFile open_file = open_files.at(fd);
-    u_int32_t inode_idx = open_file.inode_idx;
-    u_int32_t offset = open_file.offset;
-    if(open_file.status == FileStatus::RDONLY)
+    try {
+        OpenFile open_file = open_files.at(fd);
+        u_int32_t inode_idx = open_file.inode_idx;
+        u_int32_t offset = open_file.offset;
+        if(open_file.status == FileStatus::RDONLY)
+            return -1;
+
+        sync_client.WriteLock(inode_idx);
+        Inode inode = getInodeByIndex(inode_idx);
+        u_int32_t actualBlock = myCeil(offset, blockSize);
+        int blockIndex;
+        u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
+        if(actualBlock < 4) {
+            blockIndex = inode.direct_idxs[actualBlock];
+            if(blockIndex == 0) {
+                sync_client.WriteUnlock(inode_idx);
+                return -1;
+            }
+        } else if(actualBlock < numberOfIndirect + 4) {
+            //indirect block
+        } else if(actualBlock < numberOfIndirect * numberOfIndirect + numberOfIndirect + 4){
+            //doubly indirectq
+        } else {
+            sync_client.WriteUnlock(inode_idx);
+            return -1;
+        }
+
+        u_int32_t offsetInBlock = offset % blockSize;
+        sync_client.WriteUnlock(inode_idx);
+        return 0;
+    } catch (std::exception&) {
         return -1;
-    sync_client.WriteLock(inode_idx);
+    }
 
-
-    sync_client.WriteUnlock(inode_idx);
-    return 0;
 }
 
 int MFSClient::mfs_lseek(int fd, int whence, int offset) {
@@ -199,6 +227,27 @@ int MFSClient::mfs_mkdir(char *name) {
 
     return 0;
 }
+std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(char *name) {
+    std::vector<std::pair<uint32_t, std::string>> files;
+    u_int32_t directoryIndex = getInode(name);
+    int disk = openAndSeek(inodesOffset + directoryIndex * inodeSize);
+    Inode directoryInode;
+    sync_client.ReadLock(directoryIndex);
+    readFromDisk(disk, &directoryInode, sizeof(Inode), [&]() { sync_client.ReadUnlock(directoryIndex); } );
+    for(auto blockIndex : directoryInode.direct_idxs) {
+        lseekOnDisk(disk, blocksOffset + blockIndex * blockSize, SEEK_SET, [&]() { sync_client.ReadUnlock(directoryIndex); });
+        for (int i = 0; i < 128; ++i) {
+            u_int32_t fileInodeIndex;
+            readFromDisk(disk, &fileInodeIndex, sizeof(u_int32_t), [&]() { sync_client.ReadUnlock(directoryIndex); } );
+            char buff[28];
+            readFromDisk(disk, buff, 28, [&]() { sync_client.ReadUnlock(directoryIndex); } );
+            if(fileInodeIndex != 0){
+                files.push_back(std::make_pair(fileInodeIndex, buff));
+            }
+        }
+    }
+    return files;
+}
 
 int MFSClient::mfs_rmdir(char *name) {
     //free all blocks
@@ -225,6 +274,13 @@ int MFSClient::getLowestDescriptor() const {
     while (open_files.find(lowestFd) != open_files.end())
         ++lowestFd;
     return lowestFd;
+}
+
+Inode& MFSClient::getInodeByIndex(u_int32_t index) {
+    int disk = openAndSeek(inodesOffset + index * inodeSize);
+    Inode inode;
+    readFromDisk(disk, &inode, sizeof(Inode), [&]() { close(disk); } );
+    return inode;
 }
 
 u_int32_t MFSClient::getInode(std::string path) {
@@ -608,24 +664,6 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
     }
 }
 
-std::vector<std::pair<uint32_t, std::string>> MFSClient::ls(char *name) {
-    std::vector<std::pair<uint32_t, std::string>> files;
-    u_int32_t directoryIndex = getInode(name);
-    int disk = openAndSeek(inodesOffset + directoryIndex * inodeSize);
-    Inode directoryInode;
-    sync_client.ReadLock(directoryIndex);
-    readFromDisk(disk, &directoryInode, sizeof(Inode), [&]() { sync_client.ReadUnlock(directoryIndex); } );
-    for(auto blockIndex : directoryInode.direct_idxs) {
-        lseekOnDisk(disk, blocksOffset + blockIndex * blockSize, SEEK_SET, [&]() { sync_client.ReadUnlock(directoryIndex); });
-        for (int i = 0; i < 128; ++i) {
-            u_int32_t fileInodeIndex;
-            readFromDisk(disk, &fileInodeIndex, sizeof(u_int32_t), [&]() { sync_client.ReadUnlock(directoryIndex); } );
-            char buff[28];
-            readFromDisk(disk, buff, 28, [&]() { sync_client.ReadUnlock(directoryIndex); } );
-            if(fileInodeIndex != 0){
-                files.push_back(std::make_pair(fileInodeIndex, buff));
-            }
-        }
-    }
-    return files;
-}
+
+
+
