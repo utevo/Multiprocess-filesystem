@@ -148,22 +148,14 @@ int MFSClient::mfs_write(int fd, char *buf, int len) {
         sync_client.WriteLock(inode_idx);
         Inode inode = getInodeByIndex(inode_idx);
         u_int32_t actualBlock = myCeil(offset, blockSize);
-        int blockIndex;
-        u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
-        if(actualBlock < 4) {
-            blockIndex = inode.direct_idxs[actualBlock];
-            if(blockIndex == 0) {
-                sync_client.WriteUnlock(inode_idx);
-                return -1;
-            }
-        } else if(actualBlock < numberOfIndirect + 4) {
-            //indirect block
-        } else if(actualBlock < numberOfIndirect * numberOfIndirect + numberOfIndirect + 4){
-            //doubly indirectq
-        } else {
-            sync_client.WriteUnlock(inode_idx);
-            return -1;
-        }
+
+
+
+        int newBlock = 0;
+        if(offset + len > inode.size)
+            newBlock = getAndTakeUpFirstFreeBlock();
+
+
 
         u_int32_t offsetInBlock = offset % blockSize;
         sync_client.WriteUnlock(inode_idx);
@@ -171,6 +163,25 @@ int MFSClient::mfs_write(int fd, char *buf, int len) {
     } catch (std::exception&) {
         return -1;
     }
+
+}
+uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode& inode, u_int32_t blockNumberInFile) {
+    int blockIndex;
+    u_int32_t numberOfIndirect = blockSize / sizeof(u_int32_t);
+    if(blockNumberInFile < 4) {
+        blockIndex = inode.direct_idxs[blockNumberInFile];
+        if(blockIndex == 0) {
+            return -1;
+        }
+    } else if(blockNumberInFile < numberOfIndirect + 4) {
+        int disk_fd = openAndSeek();
+        return getBlockInFileByNumberIndirect(inode_idx, inode, blockNumberInFile);
+    } else {
+        return -1;
+    }
+    return blockIndex;
+}
+uint32_t MFSClient::getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_idx, const Inode& inode, u_int32_t blockNumberInFile) {
 
 }
 
@@ -275,6 +286,7 @@ int MFSClient::getLowestDescriptor() const {
         ++lowestFd;
     return lowestFd;
 }
+
 
 Inode& MFSClient::getInodeByIndex(u_int32_t index) {
     int disk = openAndSeek(inodesOffset + index * inodeSize);
@@ -663,6 +675,8 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
+
 
 
 
