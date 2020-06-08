@@ -25,7 +25,6 @@ public:
   //TODO w ostatecznej wersji zwraca tylko vector<string>
   std::vector<std::pair<uint32_t, std::string>> mfs_ls(char *name);
   int mfs_mkdir(char *name);
-  int mfs_rmdir(char *name);
 
 private:
   int openAndSeek(const int& offset = 0) const;

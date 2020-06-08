@@ -175,7 +175,7 @@ uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode& ino
         }
     } else if(blockNumberInFile < numberOfIndirect + 4) {
         int disk_fd = openAndSeek();
-        return getBlockInFileByNumberIndirect(inode_idx, inode, blockNumberInFile);
+        return getBlockInFileByNumberIndirect(disk_fd, inode_idx, inode, blockNumberInFile);
     } else {
         return -1;
     }
@@ -220,6 +220,10 @@ int MFSClient::mfs_mkdir(char *name) {
         u_int32_t blockIndex = getAndTakeUpFirstFreeBlock();
         //set new inode object:
         disk = openAndSeek(inodesOffset + inodeIndex * inodeSize);
+
+        //auto exists = getInodeFromDirectoryByName(disk, newName, parentInode);
+        //should throw when this name already exists
+        
         Inode inode;
         inode.valid = 1;
         inode.type = DIRECTORY;
@@ -268,13 +272,6 @@ std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(char *name) {
         }
     }
     return files;
-}
-
-int MFSClient::mfs_rmdir(char *name) {
-    //free all blocks
-    //free inode
-    //remove from parent
-    return 0;
 }
 
 int MFSClient::openAndSeek(const int &offset) const {
