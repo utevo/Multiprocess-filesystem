@@ -94,7 +94,7 @@ extern void CreateFS(const std::string path, u_int inodes_blocks, u_int data_blo
   u_int inode_bitmap_blocks = CalcInodeBitmapBlocks(inodes_blocks);
   u_int allocation_bitmap_blocks = CalcAllocationBitmapBlocks(data_blocks);
 
-  int fd = creat(path.c_str(), S_IRUSR | S_IRGRP | S_IROTH);
+  int fd = creat(path.c_str(), 0644);
   if (fd < 0)
     throw std::iostream::failure("Couldn't open file");
 

@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 
   char firs_letter = argv[1][0];
   if (firs_letter == 'c') {
-    CreateFS(path, 13, 1);
+    CreateFS(path, 32, 4096);
   } else if (firs_letter == 'i') {
     InitSynchronization(path);
   } else if (firs_letter == 'r') {
