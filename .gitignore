@@ -1,5 +1,6 @@
 # IDE files
-.vscode
+.vscode/
+.idea/
 
 # Prerequisites
 *.d
@@ -34,3 +35,5 @@
 *.out
 *.app
 build/
+.build/
+cmake-build-debug/

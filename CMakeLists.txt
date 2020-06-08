@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(NFS)
+project(MFS)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -12,7 +12,7 @@ message( "${SOURCES_LIBCORE}")
 add_library(libcore ${SOURCES_LIBCORE})
 
 file(GLOB SOURCES_LIBCLIENT "libraries/client/*.cpp" "libraries/client/*.hpp")
-add_library(libclient ${SOURCES_LIBCLIENT})
+add_library(libclient ${SOURCES_LIBCLIENT} libraries/client/Handler.h)
 
 file(GLOB SOURCES_LIBMANAGER "libraries/manager/*.cpp" "libraries/manager/*.hpp")
 add_library(libmanager ${SOURCES_LIBMANAGER})
