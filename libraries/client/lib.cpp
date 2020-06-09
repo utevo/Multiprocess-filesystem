@@ -51,7 +51,7 @@ void MFSClient::makeRoot() {
     Inode root;
     readFromDisk(disk, &root, sizeof(Inode),
                  [&]() { close(disk); });
-    if(root.valid == 1) {
+    if (root.valid == 1) {
         close(disk);
         return;
     }
@@ -144,11 +144,40 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
     try {
         OpenFile open_file = open_files.at(fd);
         u_int32_t inode_idx = open_file.inode_idx;
+        u_int32_t offset = open_file.offset;
         sync_client.ReadLock(inode_idx);
 
-        // TODO
+        int disk_fd = openAndSeek();
+        Inode inode = getInodeByIndex(inode_idx);
+        if (offset + len > inode.size) {
+            sync_client.ReadUnlock(inode_idx);
+            return -1;
+        }
+        u_int32_t blockIndex = offset / blockSize;
+        char *tmpBuff = buf;
 
+        auto blocks = getAllTakenBlocksInInode(inode);
+
+
+        int numberOfBytesToReadFromFirstBlock = blockSize - (offset % blockSize);
+        lseekOnDisk(disk_fd, blocksOffset + blocks[blockIndex] * blockSize + (offset % blockSize), SEEK_SET,
+                    [&]() { sync_client.WriteUnlock(inode_idx); });
+        readFromDisk(disk_fd, tmpBuff, numberOfBytesToReadFromFirstBlock,
+                    [&]() { sync_client.WriteUnlock(inode_idx); });
+        tmpBuff += numberOfBytesToReadFromFirstBlock;
+        len -= numberOfBytesToReadFromFirstBlock;
+        open_file.offset += numberOfBytesToReadFromFirstBlock;
+
+//        while (len > 0) {
+//
+//
+//        }
+        lseekOnDisk(disk_fd, inodesOffset + inode_idx * inodeSize, SEEK_SET,
+                    [&]() { sync_client.WriteUnlock(inode_idx); });
+        writeToDisk(disk_fd, &inode, sizeof(Inode), [&]() { sync_client.WriteUnlock(inode_idx); });
+        close(disk_fd);
         sync_client.ReadUnlock(inode_idx);
+        return len;
     }
     catch (std::exception &) {
         return -1;

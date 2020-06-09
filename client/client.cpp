@@ -37,15 +37,16 @@ int main() {
     char buff2[4100];
     for(int i = 0; i < 4100; ++i)
         buff2[i] = 'b';
-    client.mfs_write(fd1, buff2, 4100);
+    //client.mfs_write(fd1, buff2, 4100);
 
 
-    int filefd = client.openAndSeek(client.blocksOffset + 2 * client.blockSize);
+//    int filefd = client.openAndSeek(client.blocksOffset + 2 * client.blockSize);
     char tmp[4096];
     char tmp2[4096];
-    read(filefd, &tmp, 4096);
-    lseek(filefd, client.blocksOffset + 6 * client.blockSize, SEEK_SET);
-    read(filefd, &tmp2, 4096);
+//    read(filefd, &tmp, 4096);
+//    lseek(filefd, client.blocksOffset + 6 * client.blockSize, SEEK_SET);
+//    read(filefd, &tmp2, 4096);
+    client.mfs_read(fd1, tmp, 4096);
     for(auto s : client.mfs_ls("/"))
         std::cout << s.first << "\t" << s.second << std::endl;
     std::cout << " " << std::endl;
