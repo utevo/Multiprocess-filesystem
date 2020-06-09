@@ -12,7 +12,7 @@ message( "${SOURCES_LIBCORE}")
 add_library(libcore ${SOURCES_LIBCORE})
 
 file(GLOB SOURCES_LIBCLIENT "libraries/client/*.cpp" "libraries/client/*.hpp")
-add_library(libclient ${SOURCES_LIBCLIENT})
+add_library(libclient ${SOURCES_LIBCLIENT} libraries/client/Handler.h)
 
 file(GLOB SOURCES_LIBMANAGER "libraries/manager/*.cpp" "libraries/manager/*.hpp")
 add_library(libmanager ${SOURCES_LIBMANAGER})
@@ -39,5 +39,10 @@ foreach(TEST ${TESTS})
     target_link_libraries(${NAME} PUBLIC libcore)
     target_link_libraries(${NAME} PUBLIC libclient)
     target_link_libraries(${NAME} PUBLIC libmanager)
-
 endforeach()
+
+
+file(GLOB SOURCES_CLIENT2 "client2/*.cpp" "client2/*.hpp")
+add_executable(client2 ${SOURCES_CLIENT2})
+target_link_libraries(libclient PUBLIC libcore)
+target_link_libraries(client2 PUBLIC libclient)
