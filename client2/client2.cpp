@@ -30,20 +30,23 @@ void handleCreate(MFSClient client, const std::string path) {
 }
 void handleWrite(MFSClient client, const std::string path,
                  const std::string data) {
-  int fd = openFile(client, path);
-  client.mfs_write(fd, data.c_str(), data.length());
+  int fd1 = client.mfs_open(path.c_str(), FileStatus::RDWR);
+  char buff2[4100] = "abc";
+
+
+  client.mfs_write(fd1, data.c_str(), data.length());
 }
 void handleRead(MFSClient client, const std::string path) {
   const u_int len = 4096;
   char buf[len];
 
-  int fd = openFile(client, path);
-  int result = client.mfs_read(fd, buf, len);
+  int fd1 = client.mfs_open(path.c_str(), FileStatus::RDWR);
+  int result = client.mfs_read(fd1, buf, len);
   if (result == -1) {
     throw std::ios_base::failure("Couldn't read");
   }
-
-  std::cout << buf << std::endl;
+  std::cout << "result: " << result << std::endl;
+  std::cout << int(buf[0]) << std::endl;
 }
 void handleMkdir(MFSClient client, const std::string path) {
   client.mfs_mkdir(path.c_str());
