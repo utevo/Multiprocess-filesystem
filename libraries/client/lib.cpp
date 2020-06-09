@@ -163,9 +163,9 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 
         int numberOfBytesToReadFromFirstBlock = blockSize - (offset % blockSize);
         lseekOnDisk(disk_fd, blocksOffset + blocks[blockIndex] * blockSize + (offset % blockSize), SEEK_SET,
-                    [&]() { sync_client.WriteUnlock(inode_idx); });
+                    [&]() { sync_client.ReadUnlock(inode_idx); });
         readFromDisk(disk_fd, tmpBuff, numberOfBytesToReadFromFirstBlock,
-                    [&]() { sync_client.WriteUnlock(inode_idx); });
+                    [&]() { sync_client.ReadUnlock(inode_idx); });
         tmpBuff += numberOfBytesToReadFromFirstBlock;
         len -= numberOfBytesToReadFromFirstBlock;
         open_file.offset += numberOfBytesToReadFromFirstBlock;
@@ -175,8 +175,8 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 //
 //        }
         lseekOnDisk(disk_fd, inodesOffset + inode_idx * inodeSize, SEEK_SET,
-                    [&]() { sync_client.WriteUnlock(inode_idx); });
-        writeToDisk(disk_fd, &inode, sizeof(Inode), [&]() { sync_client.WriteUnlock(inode_idx); });
+                    [&]() { sync_client.ReadUnlock(inode_idx); });
+        writeToDisk(disk_fd, &inode, sizeof(Inode), [&]() { sync_client.ReadUnlock(inode_idx); });
         close(disk_fd);
         sync_client.ReadUnlock(inode_idx);
         return len;
@@ -430,6 +430,7 @@ std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(const char *name
             }
         }
     }
+    sync_client.ReadUnlock(directoryIndex);
     return files;
 }
 
