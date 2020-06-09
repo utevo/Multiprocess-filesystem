@@ -143,6 +143,8 @@ int MFSClient::mfs_close(int fd) {
 int MFSClient::mfs_read(int fd, char *buf, int len) {
     try {
         OpenFile open_file = open_files.at(fd);
+        if(open_file.status == WRONLY)
+            return -1;
         u_int32_t inode_idx = open_file.inode_idx;
         u_int32_t offset = open_file.offset;
         sync_client.ReadLock(inode_idx);
