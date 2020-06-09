@@ -17,6 +17,7 @@ public:
 
   int mfs_open(const char *name, int mode);
   int mfs_creat(const char *name, int mode);
+  int mfs_close(int fd);
   int mfs_read(int fd, char *buf, int len);
   int mfs_write(int fd, const char *buf, int len);
   int mfs_lseek(int fd, int whence, int offset);

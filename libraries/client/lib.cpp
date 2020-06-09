@@ -124,6 +124,16 @@ int MFSClient::mfs_creat(const char *name, int mode) {
     }
 }
 
+int MFSClient::mfs_close(int fd) {
+    if(open_files.find(fd) != open_files.end()) {
+        open_files.erase(fd);
+        return 0;
+    }
+    else
+        return -1;
+}
+
+
 int MFSClient::mfs_read(int fd, char *buf, int len) {
     try {
         OpenFile open_file = open_files.at(fd);
@@ -712,6 +722,7 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
 
 
 
