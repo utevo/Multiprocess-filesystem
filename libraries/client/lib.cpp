@@ -51,8 +51,10 @@ void MFSClient::makeRoot() {
     Inode root;
     readFromDisk(disk, &root, sizeof(Inode),
                  [&]() { close(disk); });
-    if(root.valid == 0)
+    if(root.valid == 1) {
+        close(disk);
         return;
+    }
     getAndTakeUpFirstFreeInode(); //should take up inode 0
     getAndTakeUpFirstFreeBlock(); //should take up block 0
 
