@@ -28,12 +28,13 @@ public:
   int mfs_mkdir(const char *name);
   int mfs_rmdir(char *name);
 
-private:
+//private:
   int openAndSeek(const int& offset = 0) const;
   int getLowestDescriptor() const;
 
+  std::vector<u_int32_t> getAllTakenBlocksInInode(const Inode &inode);
   u_int32_t blocksToWrite(const u_int32_t& fileOffset, const u_int32_t& length) const;
-  Inode& getInodeByIndex(u_int32_t index);
+  Inode getInodeByIndex(u_int32_t index);
   //returns the block number from the sequence of saved blocks of the file
 
   uint32_t getBlockInFileByNumber(u_int32_t inode_idx, const Inode& inode, u_int32_t blockNumberInFile);

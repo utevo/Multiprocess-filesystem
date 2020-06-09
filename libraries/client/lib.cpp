@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <vector>
+#include <list>
 #include <cmath>
 
 #include "lib.hpp"
@@ -46,6 +47,12 @@ void MFSClient::mfs_mount(const char *path) {
 }
 
 void MFSClient::makeRoot() {
+    int disk = openAndSeek(inodesOffset + inodeSize);
+    Inode root;
+    readFromDisk(disk, &root, sizeof(Inode),
+                 [&]() { close(disk); });
+    if(root.valid == 0)
+        return;
     getAndTakeUpFirstFreeInode(); //should take up inode 0
     getAndTakeUpFirstFreeBlock(); //should take up block 0
 
@@ -57,12 +64,10 @@ void MFSClient::makeRoot() {
     inode.type = DIRECTORY;
     inode.size = blockSize;
     inode.direct_idxs[0] = rootBlock;
-    sync_client.WriteLock(rootInode);
-    int disk = openAndSeek(inodesOffset + rootInode * inodeSize);
+    lseekOnDisk(disk, inodesOffset + rootInode * inodeSize, SEEK_SET, [&]() { close(disk); });
 
     writeToDisk(disk, &inode, sizeof(Inode),
-                [&]() { sync_client.WriteUnlock(rootInode); });
-    sync_client.WriteUnlock(rootInode);
+                [&]() { close(disk); });
     clearBlock(1);
     close(disk);
 
@@ -125,11 +130,10 @@ int MFSClient::mfs_creat(const char *name, int mode) {
 }
 
 int MFSClient::mfs_close(int fd) {
-    if(open_files.find(fd) != open_files.end()) {
+    if (open_files.find(fd) != open_files.end()) {
         open_files.erase(fd);
         return 0;
-    }
-    else
+    } else
         return -1;
 }
 
@@ -150,6 +154,7 @@ int MFSClient::mfs_read(int fd, char *buf, int len) {
 }
 
 int MFSClient::mfs_write(int fd, const char *buf, int len) {
+    int disk_fd;
     try {
         OpenFile open_file = open_files.at(fd);
         u_int32_t inode_idx = open_file.inode_idx;
@@ -160,27 +165,117 @@ int MFSClient::mfs_write(int fd, const char *buf, int len) {
         sync_client.WriteLock(inode_idx);
         Inode inode = getInodeByIndex(inode_idx);
 
-        u_int32_t numberOfNewBlocks = myCeil((offset + len) - inode.size,blockSize);
-        u_int32_t numberOfBlocksToWrite = blocksToWrite(offset, len);
-        u_int32_t actualBlock = offset / blockSize;
+        disk_fd = openAndSeek();
+        char *tmpBuf = const_cast<char *>(buf);
 
+        if (offset + len < inode.size) {
+            u_int32_t firstBlock = offset / blockSize;
+            std::vector<u_int32_t> blocks = getAllTakenBlocksInInode(inode);
+            if (offset % blockSize != 0) {
+                int numberOfBytesToWriteInFirstBlock = blockSize - (offset % blockSize);
+                lseekOnDisk(disk_fd, blocksOffset + blocks[firstBlock] * blockSize + (offset % blockSize), SEEK_SET,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                writeToDisk(disk_fd, tmpBuf, numberOfBytesToWriteInFirstBlock,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                tmpBuf += numberOfBytesToWriteInFirstBlock;
+                len -= numberOfBytesToWriteInFirstBlock;
+                open_files[fd].offset += numberOfBytesToWriteInFirstBlock;
+            }
+            u_int32_t numberOfBlocksToWrite = blocksToWrite(offset, len);
+            for (int i = 0; i < numberOfBlocksToWrite; ++i) {
+                u_int32_t currentBlock = blocks[firstBlock + i];
+                lseekOnDisk(disk_fd, blocksOffset + currentBlock * blockSize, SEEK_SET,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                u_int32_t sizeInIteration = (len > blockSize) ? blockSize : len;
+                writeToDisk(disk_fd, tmpBuf, sizeInIteration,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                tmpBuf += sizeInIteration;
+                len -= sizeInIteration;
+                open_files[fd].offset += sizeInIteration;
+            }
+        } else if (inode.size == 0) {
+            u_int32_t numberOfBlocksToWrite = myCeil(len, blockSize);
+            if (numberOfBlocksToWrite == 0)
+                return 0;
 
-        int newBlock = 0;
-        if (offset + len > inode.size)
-            newBlock = getAndTakeUpFirstFreeBlock();
+            std::list<u_int32_t> blocks;
+            while (numberOfBlocksToWrite > 0) {
+                int block = getAndTakeUpFirstFreeBlock();
+                lseekOnDisk(disk_fd, blocksOffset + block * blockSize, SEEK_SET,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                u_int32_t sizeInIteration = (len > blockSize) ? blockSize : len;
+                writeToDisk(disk_fd, tmpBuf, sizeInIteration,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                tmpBuf += sizeInIteration;
+                len -= sizeInIteration;
+                open_files[fd].offset += sizeInIteration;
+                inode.size += sizeInIteration;
+                blocks.push_back(block);
+                --numberOfBlocksToWrite;
+            }
+            for (auto &b : inode.direct_idxs) {
+                if (blocks.empty())
+                    break;
+                b = blocks.front();
+                blocks.pop_front();
+            }
+            if (!blocks.empty()) {
+                inode.indirect_idx = getAndTakeUpFirstFreeBlock();
+                lseekOnDisk(disk_fd, blocksOffset + inode.indirect_idx * blockSize, SEEK_SET,
+                            [&]() { sync_client.WriteUnlock(inode_idx); });
+                for (auto b : blocks)
+                    writeToDisk(disk_fd, &b, sizeof(u_int32_t), [&]() { sync_client.WriteUnlock(inode_idx); });
+            }
+            lseekOnDisk(disk_fd, inodesOffset + inode_idx * inodeSize, SEEK_SET,
+                        [&]() { sync_client.WriteUnlock(inode_idx); });
+            writeToDisk(disk_fd, &inode, sizeof(Inode), [&]() { sync_client.WriteUnlock(inode_idx); });
+            close(disk_fd);
+            sync_client.WriteUnlock(inode_idx);
+            return len;
+        } else {
 
-
+        }
+//        u_int32_t numberOfNewBlocks = myCeil((offset + len) - inode.size, blockSize);
+//        u_int32_t numberOfBlocksToWrite = blocksToWrite(offset, len);
+//        u_int32_t actualBlock = getBlockInFileByNumber(inode_idx, inode, offset / blockSize);
+//
+//        int disk_fd = openAndSeek(actualBlock + offset % blockSize);
+//        int offsetInBuf = blockSize - offset % blockSize;
+//        writeToDisk(disk_fd, buf, blockSize - offset % blockSize, [&]() { sync_client.WriteUnlock(inode_idx); });
+//        --numberOfBlocksToWrite;
         u_int32_t offsetInBlock = offset % blockSize;
+        close(disk_fd);
         sync_client.WriteUnlock(inode_idx);
         return 0;
     } catch (std::exception &) {
+        close(disk_fd);
         return -1;
     }
 }
 
-u_int32_t MFSClient::blocksToWrite(const u_int32_t& fileOffset, const u_int32_t& length) const {
+std::vector<u_int32_t> MFSClient::getAllTakenBlocksInInode(const Inode &inode) {
+    std::vector<u_int32_t> blocks;
+    bool stop = false;
+    for (auto b : inode.direct_idxs) {
+        if (b == 0)
+            return blocks;
+        blocks.push_back(b);
+    }
+    int disk_fd = openAndSeek(blocksOffset + inode.indirect_idx * blockSize);
+    u_int32_t indirectIndex;
+
+    for (int i = 0; i < (blockSize / sizeof(u_int32_t)); ++i) {
+        readFromDisk(disk_fd, &indirectIndex, sizeof(u_int32_t), []() {});
+        if (indirectIndex == 0)
+            return blocks;
+        blocks.push_back(indirectIndex);
+    }
+    return blocks;
+}
+
+u_int32_t MFSClient::blocksToWrite(const u_int32_t &fileOffset, const u_int32_t &length) const {
     u_int32_t bytesToWriteInCurrentBlock = blockSize - (fileOffset % blockSize);
-    if(length < bytesToWriteInCurrentBlock)
+    if (length < bytesToWriteInCurrentBlock)
         return 1;
     int bytesToWriteInNextBlocks = length - bytesToWriteInCurrentBlock;
     return 1 + myCeil(bytesToWriteInNextBlocks, blockSize);
@@ -201,7 +296,6 @@ uint32_t MFSClient::getBlockInFileByNumber(u_int32_t inode_idx, const Inode &ino
     } else {
         return -1;
     }
-    return blockIndex;
 }
 
 uint32_t MFSClient::getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_idx,
@@ -209,7 +303,12 @@ uint32_t MFSClient::getBlockInFileByNumberIndirect(int disk_fd, u_int32_t inode_
                                                    u_int32_t blockNumberInFile) {
     lseekOnDisk(disk_fd, blocksOffset + inode.indirect_idx * blockSize + (blockNumberInFile - 1) * sizeof(u_int32_t),
                 SEEK_SET, [&]() {});
-
+    u_int32_t blockIndex;
+    readFromDisk(disk_fd, &blockIndex, sizeof(u_int32_t), [&]() {});
+    if (blockIndex == 0)
+        throw std::domain_error("Block is not belong to file");
+    else
+        return blockIndex;
 }
 
 int MFSClient::mfs_lseek(int fd, int whence, int offset) {
@@ -230,7 +329,7 @@ int MFSClient::mfs_unlink(const char *name) {
 }
 
 int MFSClient::mfs_mkdir(const char *name) {
-    if(split(name, '/').size() == 0)
+    if (split(name, '/').size() == 0)
         throw std::invalid_argument("Cannot make directory with empty name");
 
     int disk;
@@ -277,6 +376,7 @@ int MFSClient::mfs_mkdir(const char *name) {
 
     return 0;
 }
+
 std::vector<std::pair<uint32_t, std::string>> MFSClient::mfs_ls(const char *name) {
     std::vector<std::pair<uint32_t, std::string>> files;
     u_int32_t directoryIndex = getInode(name);
@@ -321,7 +421,7 @@ int MFSClient::getLowestDescriptor() const {
 }
 
 
-Inode &MFSClient::getInodeByIndex(u_int32_t index) {
+Inode MFSClient::getInodeByIndex(u_int32_t index) {
     int disk = openAndSeek(inodesOffset + index * inodeSize);
     Inode inode;
     readFromDisk(disk, &inode, sizeof(Inode), [&]() { close(disk); });
@@ -670,11 +770,11 @@ void MFSClient::freeBlock(unsigned long index) {
 }
 
 void MFSClient::clearBlock(u_int32_t index) {
-    int disk = openAndSeek(blocks + blockSize * index);
+    int disk = openAndSeek(blocksOffset + blockSize * index);
     char buff[blockSize];
     for (auto &byte : buff)
         byte = '\0';
-    writeToDisk(disk, buff, sizeof(blockSize), [&]() { close(disk); });
+    writeToDisk(disk, buff, blockSize, [&]() { close(disk); });
     close(disk);
 }
 
@@ -722,6 +822,8 @@ void MFSClient::lseekOnDisk(int disk_fd, off_t offset, int whence, std::function
         throw std::ios_base::failure("Cannot write to virtual disk");
     }
 }
+
+
 
 
 
