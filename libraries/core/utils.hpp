@@ -43,4 +43,8 @@ unsigned long myCeil(unsigned long first, unsigned long second);
 std::vector<std::string> split(const std::string& str, char separator);
 std::string trim(const std::string& s);
 
+Superblock ReadSuperblock(const std::string path);
+
+u_int32_t CalcInodes(u_int32_t inode_blocks);
+
 #endif

@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <vector>
 
+#include "./utils.hpp"
+
 const int kProjecId = 0x1a4;
 
 std::vector<u_int8_t> SerializeLong(long value) {
@@ -212,7 +214,9 @@ extern void InitSync(const std::string path) {
   InitAllocationBitmapSync(msqid);
   InitInodesBitmapSync(msqid);
 
-  int inodes = 13; // ToDo: need read number of inodes from fs
+  Superblock superblock = ReadSuperblock(path);
+  int inodes = CalcInodes(superblock.inode_blocks);
+  std::cout << "inodes: " << inodes << std::endl; // ToDo: need read number of inodes from fs
   InitInodesSync(msqid, inodes);
 }
 
